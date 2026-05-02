@@ -16,6 +16,7 @@
 - Required env vars verified locally and in Vercel Development/Production without exposing values.
 - Task 8 is still blocked from completion until a preview deployment succeeds.
 - Supabase Storage bucket `surgical-images` is still unverified from repo-only evidence and needs dashboard confirmation.
+- Admin MVP hardened: `/api/users` now enforces admin role, `/settings/users` redirects non-admin users to `/settings`, and Settings shows an admin-only management entrypoint.
 
 ---
 

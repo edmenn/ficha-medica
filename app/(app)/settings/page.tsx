@@ -1,8 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { CustomFieldTemplate } from '@/types'
+import type { CustomFieldTemplate, UserRole } from '@/types'
 
 const MODELS = [
   'anthropic/claude-3.5-sonnet',
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [customFields, setCustomFields] = useState<CustomFieldTemplate[]>([])
   const [newFieldName, setNewFieldName] = useState('')
+  const [role, setRole] = useState<UserRole>('user')
 
   useEffect(() => {
     const supabase = createClient()
@@ -27,10 +29,11 @@ export default function SettingsPage() {
       if (!user) return
       const { data } = await supabase
         .from('users')
-        .select('preferred_model')
+        .select('preferred_model, role')
         .eq('id', user.id)
         .single()
       if (data?.preferred_model) setModel(data.preferred_model)
+      if (data?.role) setRole(data.role)
       setLoading(false)
     })
   }, [])
@@ -127,6 +130,22 @@ export default function SettingsPage() {
           <button onClick={addField} className="bg-slate-700 hover:bg-slate-600 text-white px-4 rounded-lg text-sm">+ Agregar</button>
         </div>
       </div>
+      {role === 'admin' && (
+        <div className="mt-8 rounded-xl border border-blue-800/60 bg-blue-950/40 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-blue-200">Panel admin</p>
+              <p className="text-xs text-blue-300/80 mt-1">Invitá usuarios y revisá los accesos del equipo.</p>
+            </div>
+            <Link
+              href="/settings/users"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg whitespace-nowrap"
+            >
+              Gestionar
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
