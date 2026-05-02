@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import ImageCapture from '@/components/capture/ImageCapture'
 import RecordForm from '@/components/records/RecordForm'
 import { prepareImageForUpload } from '@/lib/imageUtils'
-import type { AnalyzeResponse, SurgicalFields } from '@/types'
+import type { AnalyzeResponse, CustomFieldTemplate, SurgicalFields } from '@/types'
 
 type Step = 'capture' | 'processing' | 'review'
 
@@ -15,8 +16,15 @@ export default function NewRecordPage() {
   const [preview, setPreview] = useState<string | null>(null)
   const [analyzeData, setAnalyzeData] = useState<AnalyzeResponse | null>(null)
   const [fields, setFields] = useState<SurgicalFields | null>(null)
+  const [customFields, setCustomFields] = useState<CustomFieldTemplate[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/custom-fields')
+      .then(r => r.json())
+      .then(data => setCustomFields(data.fields ?? []))
+  }, [])
 
   async function handleImageSelected(file: File) {
     setStep('processing')
@@ -90,7 +98,14 @@ export default function NewRecordPage() {
       {step === 'processing' && (
         <div className="text-center py-12">
           {preview && (
-            <img src={preview} alt="Documento" className="w-full rounded-xl mb-6 max-h-64 object-contain" />
+            <Image
+              src={preview}
+              alt="Documento"
+              width={1200}
+              height={900}
+              unoptimized
+              className="w-full rounded-xl mb-6 max-h-64 object-contain"
+            />
           )}
           <div className="animate-pulse text-blue-400 text-lg mb-2">🤖 Extrayendo datos con IA...</div>
           <p className="text-slate-500 text-sm">Esto puede tardar unos segundos</p>
@@ -100,11 +115,19 @@ export default function NewRecordPage() {
       {step === 'review' && analyzeData && fields && (
         <>
           {preview && (
-            <img src={preview} alt="Documento" className="w-full rounded-xl mb-6 max-h-48 object-contain" />
+            <Image
+              src={preview}
+              alt="Documento"
+              width={1200}
+              height={900}
+              unoptimized
+              className="w-full rounded-xl mb-6 max-h-48 object-contain"
+            />
           )}
           <RecordForm
             fields={fields}
             recordFields={analyzeData.record_fields}
+            customFields={customFields}
             onChange={setFields}
             onSave={handleSave}
             saving={saving}

@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const inviteUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('supabase.co', 'vercel.app') ?? ''}/accept-invite/${invite.token}`
+    const inviteUrl = new URL(`/accept-invite/${invite.token}`, req.nextUrl.origin).toString()
     return NextResponse.json({ token: invite.token, url: inviteUrl })
   }
 

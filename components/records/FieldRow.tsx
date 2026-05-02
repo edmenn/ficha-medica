@@ -27,7 +27,8 @@ interface Props {
 export default function FieldRow({ fieldName, value, aiValue, confidence, onChange }: Props) {
   const label = FIELD_LABELS[fieldName] ?? fieldName
   const isLowConfidence = confidence < 0.5
-  const wasModified = value !== aiValue
+  const hasAIValue = aiValue !== null && aiValue !== ''
+  const wasModified = hasAIValue && value !== aiValue
 
   return (
     <div className="mb-4">

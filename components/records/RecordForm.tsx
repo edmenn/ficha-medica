@@ -1,7 +1,7 @@
 'use client'
 
 import FieldRow from './FieldRow'
-import type { RecordField, SurgicalFields } from '@/types'
+import type { CustomFieldTemplate, RecordField, SurgicalFields } from '@/types'
 
 interface Props {
   fields: SurgicalFields
@@ -9,31 +9,39 @@ interface Props {
   onChange: (updated: SurgicalFields) => void
   onSave: () => void
   saving?: boolean
+  customFields?: CustomFieldTemplate[]
 }
 
-const FIELD_ORDER: (keyof SurgicalFields)[] = [
+const FIELD_ORDER: string[] = [
   'paciente', 'fecha_cirugia', 'hora_inicio', 'hora_fin', 'duracion',
   'diagnostico', 'procedimiento', 'cirujano', 'ayudantes',
   'anestesiologo', 'instrumentador', 'sanatorio', 'observaciones',
 ]
 
-export default function RecordForm({ fields, recordFields, onChange, onSave, saving }: Props) {
+export default function RecordForm({ fields, recordFields, onChange, onSave, saving, customFields = [] }: Props) {
   function handleChange(key: string, value: string) {
     onChange({ ...fields, [key]: value || null })
   }
 
+  const orderedFields: string[] = [
+    ...FIELD_ORDER,
+    ...customFields
+      .map(field => field.field_name)
+      .filter(fieldName => !FIELD_ORDER.includes(fieldName)),
+  ]
+
   return (
     <div>
-      {FIELD_ORDER.map(key => {
+      {orderedFields.map(key => {
         const rf = recordFields.find(f => f.field_name === key)
         return (
           <FieldRow
             key={key}
-            fieldName={key as string}
-            value={fields[key] ?? ''}
+            fieldName={key}
+            value={fields[key as keyof SurgicalFields] ?? ''}
             aiValue={rf?.ai_value ?? null}
             confidence={rf?.confidence ?? 1}
-            onChange={v => handleChange(key as string, v)}
+            onChange={v => handleChange(key, v)}
           />
         )
       })}

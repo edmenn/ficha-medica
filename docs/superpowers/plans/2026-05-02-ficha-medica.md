@@ -8,6 +8,15 @@
 
 **Tech Stack:** Next.js 14, TypeScript, Tailwind CSS, Supabase (PostgreSQL + Auth + Storage), OpenRouter API, `openai` npm package (OpenAI-compatible client), `xlsx`, `@react-pdf/renderer`, `heic2any`, Vitest
 
+## Verified Status (2026-05-02)
+
+- Local dependency matrix restored to Next 14.2.35 + React 18.3.1 + eslint-config-next 14.2.35.
+- Local checks verified: `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run build`.
+- Vercel project link verified via `.vercel/project.json`.
+- Required env vars verified locally and in Vercel Development/Production without exposing values.
+- Task 8 is still blocked from completion until a preview deployment succeeds.
+- Supabase Storage bucket `surgical-images` is still unverified from repo-only evidence and needs dashboard confirmation.
+
 ---
 
 ## File Structure
@@ -1099,6 +1108,8 @@ git commit -m "feat: add app shell with bottom navigation"
 ---
 
 ### Task 8: Deploy to Vercel
+
+**Verified current state:** project already linked as `ficha-medica`; previous production deployment failed on dependency resolution; preview deployment not yet verified successful.
 
 - [ ] **Step 1: Create Vercel project**
 

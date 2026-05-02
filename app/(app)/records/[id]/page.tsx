@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import RecordForm from '@/components/records/RecordForm'
-import type { SurgicalRecord, SurgicalFields } from '@/types'
+import type { CustomFieldTemplate, SurgicalRecord, SurgicalFields } from '@/types'
 
 export default function RecordDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [record, setRecord] = useState<SurgicalRecord | null>(null)
   const [fields, setFields] = useState<SurgicalFields | null>(null)
+  const [customFields, setCustomFields] = useState<CustomFieldTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -18,6 +19,12 @@ export default function RecordDetailPage() {
       .then(r => r.json())
       .then(d => { setRecord(d); setFields(d.final_data); setLoading(false) })
   }, [id])
+
+  useEffect(() => {
+    fetch('/api/custom-fields')
+      .then(r => r.json())
+      .then(d => setCustomFields(d.fields ?? []))
+  }, [])
 
   async function handleSave() {
     if (!fields) return
@@ -43,6 +50,7 @@ export default function RecordDetailPage() {
       <RecordForm
         fields={fields}
         recordFields={record.record_fields ?? []}
+        customFields={customFields}
         onChange={setFields}
         onSave={handleSave}
         saving={saving}
