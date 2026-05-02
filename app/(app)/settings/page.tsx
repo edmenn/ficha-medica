@@ -78,15 +78,29 @@ export default function SettingsPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    await fetch('/api/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ openrouter_key: apiKey || undefined, preferred_model: model }),
-    })
-    setSaving(false)
-    setSaved(true)
-    setApiKey('')
-    setTimeout(() => setSaved(false), 3000)
+    setModelsError(null)
+    
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ openrouter_key: apiKey || undefined, preferred_model: model }),
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Ocurrió un error al guardar la configuración')
+      }
+
+      setSaved(true)
+      setApiKey('')
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      setModelsError(err instanceof Error ? err.message : 'Error desconocido al guardar')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handlePasswordChange(e: React.FormEvent) {
