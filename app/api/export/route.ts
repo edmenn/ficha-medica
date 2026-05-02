@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   if (format === 'xlsx') {
     const buffer = buildWorkbook(records)
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="registros-${from}-${to}.xlsx"`,
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 
   if (format === 'pdf') {
     const buffer = await buildPDF(records, from, to)
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="registros-${from}-${to}.pdf"`,

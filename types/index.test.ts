@@ -10,8 +10,7 @@ describe('types', () => {
   })
 
   it('RecordStatus is a union', () => {
-    const s: RecordStatus = 'final'
-    expectTypeOf(s).toEqualTypeOf<RecordStatus>()
+    expectTypeOf<RecordStatus>().toEqualTypeOf<'draft' | 'reviewed' | 'final'>()
   })
 
   it('UserProfile has role', () => {
