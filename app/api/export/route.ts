@@ -1,0 +1,59 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { buildWorkbook } from '@/lib/export/excel'
+import { buildPDF } from '@/lib/export/pdf'
+import type { ExportQuery } from '@/types'
+
+export async function GET(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const format = searchParams.get('format') as ExportQuery['format']
+  const from = searchParams.get('from')
+  const to = searchParams.get('to')
+
+  if (!format || !from || !to) {
+    return NextResponse.json({ error: 'format, from, and to are required' }, { status: 400 })
+  }
+
+  const { data: records, error } = await supabase
+    .from('surgical_records')
+    .select('*')
+    .gte('created_at', from)
+    .lte('created_at', to + 'T23:59:59Z')
+    .eq('status', 'final')
+    .order('created_at')
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await supabase.from('audit_log').insert({
+    user_id: user.id,
+    record_id: null,
+    action: 'exported',
+    diff: { format, from, to, count: records.length },
+  })
+
+  if (format === 'xlsx') {
+    const buffer = buildWorkbook(records)
+    return new NextResponse(buffer, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="registros-${from}-${to}.xlsx"`,
+      },
+    })
+  }
+
+  if (format === 'pdf') {
+    const buffer = await buildPDF(records, from, to)
+    return new NextResponse(buffer, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="registros-${from}-${to}.pdf"`,
+      },
+    })
+  }
+
+  return NextResponse.json({ error: 'Invalid format' }, { status: 400 })
+}
