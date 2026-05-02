@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { CustomFieldTemplate } from '@/types'
 
 const MODELS = [
   'anthropic/claude-3.5-sonnet',
@@ -17,6 +18,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [customFields, setCustomFields] = useState<CustomFieldTemplate[]>([])
+  const [newFieldName, setNewFieldName] = useState('')
 
   useEffect(() => {
     const supabase = createClient()
@@ -31,6 +34,29 @@ export default function SettingsPage() {
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    fetch('/api/custom-fields').then(r => r.json()).then(d => setCustomFields(d.fields ?? []))
+  }, [])
+
+  async function addField() {
+    if (!newFieldName.trim()) return
+    const res = await fetch('/api/custom-fields', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ field_name: newFieldName.trim(), field_type: 'text' }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      setCustomFields(prev => [...prev, data])
+      setNewFieldName('')
+    }
+  }
+
+  async function removeField(id: string) {
+    await fetch(`/api/custom-fields/${id}`, { method: 'DELETE' })
+    setCustomFields(prev => prev.filter(f => f.id !== id))
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -81,6 +107,26 @@ export default function SettingsPage() {
           {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar'}
         </button>
       </form>
+      <div className="mt-8">
+        <h2 className="text-sm font-semibold text-slate-400 mb-3">Campos personalizados</h2>
+        {customFields.map(f => (
+          <div key={f.id} className="flex justify-between items-center bg-slate-800 rounded-lg px-3 py-2.5 mb-2">
+            <span className="text-sm text-white">{f.field_name}</span>
+            <button onClick={() => removeField(f.id)} className="text-red-400 text-sm">x</button>
+          </div>
+        ))}
+        <div className="flex gap-2 mt-2">
+          <input
+            type="text"
+            value={newFieldName}
+            onChange={e => setNewFieldName(e.target.value)}
+            placeholder="Nombre del campo"
+            className="flex-1 bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+            onKeyDown={e => e.key === 'Enter' && addField()}
+          />
+          <button onClick={addField} className="bg-slate-700 hover:bg-slate-600 text-white px-4 rounded-lg text-sm">+ Agregar</button>
+        </div>
+      </div>
     </div>
   )
 }
