@@ -142,30 +142,46 @@ export default function SettingsPage() {
         <div>
           <label className="block text-sm text-slate-400 mb-1">Modelo preferido</label>
           <input
-            type="search"
-            value={modelQuery}
-            onChange={e => setModelQuery(e.target.value)}
-            placeholder="Buscar modelo..."
-            className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-blue-500 mb-2"
-          />
-          <input
-            list="openrouter-models"
+            type="text"
             value={model}
             onChange={e => setModel(e.target.value)}
             placeholder="anthropic/claude-3.5-sonnet"
-            className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-blue-500 font-mono text-sm"
+            className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-blue-500 font-mono text-sm mb-3"
           />
-          <datalist id="openrouter-models">
-            {filteredModels.map(option => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ))}
-          </datalist>
+          <label className="block text-sm text-slate-400 mb-1">Buscar y seleccionar modelo</label>
+          <input
+            type="search"
+            value={modelQuery}
+            onChange={e => setModelQuery(e.target.value)}
+            placeholder="Ej: Claude, GPT-4, Llama..."
+            className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-blue-500 mb-2 text-sm"
+          />
+          {modelQuery.trim().length > 0 && (
+            <div className="max-h-48 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg p-2 mb-2">
+              {filteredModels.length === 0 ? (
+                <p className="text-sm text-slate-500 p-2">No se encontraron modelos</p>
+              ) : (
+                filteredModels.map(option => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => {
+                      setModel(option.id)
+                      setModelQuery('')
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-slate-800 rounded mb-1 transition-colors flex flex-col"
+                  >
+                    <span className="text-sm font-medium text-slate-200">{option.name}</span>
+                    <span className="text-xs text-slate-500 font-mono mt-0.5">{option.id}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
           {modelsError && <p className="text-xs text-amber-400 mt-1">{modelsError}</p>}
           {!modelsError && (
             <p className="text-xs text-slate-500 mt-1">
-              {models.length > 0 ? `Modelos cargados: ${models.length}. Mostrando hasta 50 resultados filtrados.` : 'Cargando modelos de OpenRouter...'}
+              {models.length > 0 ? `Modelos cargados: ${models.length}. Usá el buscador para encontrar un modelo fácilmente.` : 'Cargando modelos de OpenRouter...'}
             </p>
           )}
         </div>
