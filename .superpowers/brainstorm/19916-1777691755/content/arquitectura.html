@@ -1,0 +1,41 @@
+<h2>Arquitectura del sistema — 3 enfoques</h2>
+<p class="subtitle">Elegí el que mejor se adapta a tus necesidades</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Next.js + Supabase full-stack</h3>
+      <p>Frontend y API en Next.js (Vercel), base de datos + auth + storage en Supabase. La API key del usuario se guarda encriptada en la DB y las llamadas a IA se hacen desde el servidor (API Routes de Next.js). <strong>Stack: TypeScript, Next.js 14, Supabase, PostgreSQL.</strong></p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>100% gratis en free tier</li><li>Un solo repo, fácil de mantener</li><li>Deploy automático en Vercel</li><li>API key nunca llega al cliente</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Vercel free: timeout de 10s en API routes (raro para análisis de imágenes)</li><li>Cold starts ocasionales</li></ul></div>
+      </div>
+      <p style="margin-top:8px;font-weight:600;color:#2563eb">⭐ Recomendado</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Next.js + Supabase + Edge Functions</h3>
+      <p>Igual que A, pero el procesamiento de IA se mueve a Supabase Edge Functions (Deno). Más robusto para tareas de larga duración. <strong>Stack: TypeScript, Next.js 14, Supabase, Edge Functions.</strong></p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Sin límite de timeout de Vercel para IA</li><li>Lógica de IA colocada junto a la DB</li><li>500K invocaciones gratis/mes</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Deno runtime en Edge Functions (diferente a Node)</li><li>Más complejo de debuggear localmente</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Next.js frontend + Backend Python (FastAPI)</h3>
+      <p>Frontend en Next.js/Vercel, backend separado en Python con FastAPI hosteado en Railway o Render. Más potencia para procesamiento de imágenes y futuras integraciones ML. <strong>Stack: TypeScript, Next.js, Python, FastAPI, Supabase.</strong></p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Máxima flexibilidad</li><li>Fácil agregar procesamiento ML en el futuro</li><li>Sin limitaciones de runtime</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Railway/Render free tier duerme tras inactividad</li><li>Dos repos / más ops</li><li>Probablemente overkill para el MVP</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

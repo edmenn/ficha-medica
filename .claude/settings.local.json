@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude plugin *)",
+      "Bash(mkdir -p ~/.claude/skills)",
+      "Bash(git clone *)",
+      "Bash(rtk npx *)",
+      "Bash(rtk brew *)",
+      "Bash(rtk ls *)",
+      "Bash(rtk read *)",
+      "Bash(bash ~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir \"/Users/edmenn/Library/CloudStorage/OneDrive-Personal/001- Proyectos/Osvaldo - Ficha Medica\")",
+      "Bash(rtk grep *)",
+      "Bash(npx create-next-app@14 . --typescript --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\")",
+      "Bash(mkdir -p /tmp/nextjs-scaffold)",
+      "Read(//tmp/**)",
+      "Bash(npm --version)",
+      "Bash(npm init *)",
+      "Bash(rtk npm *)",
+      "Bash(npm exec *)",
+      "Bash(rsync *)",
+      "Bash(npm install *)",
+      "Bash(rtk git *)"
+    ]
+  }
+}
