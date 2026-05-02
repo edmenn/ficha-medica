@@ -17,6 +17,8 @@
 - Task 8 is still blocked from completion until a preview deployment succeeds.
 - Supabase Storage bucket `surgical-images` is still unverified from repo-only evidence and needs dashboard confirmation.
 - Admin MVP hardened: `/api/users` now enforces admin role, `/settings/users` redirects non-admin users to `/settings`, and Settings shows an admin-only management entrypoint.
+- Settings expanded: OpenRouter model selection now supports searchable fetched model lists, and the account section now includes logout and password change.
+- Admin/profile lookups now avoid the recursive `users` RLS path by resolving the current profile through a server-side service-role helper and exposing `/api/me` for the settings UI.
 
 ---
 

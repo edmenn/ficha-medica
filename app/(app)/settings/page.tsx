@@ -2,44 +2,58 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { CustomFieldTemplate, UserRole } from '@/types'
 
-const MODELS = [
-  'anthropic/claude-3.5-sonnet',
-  'anthropic/claude-3-haiku',
-  'openai/gpt-4o',
-  'openai/gpt-4o-mini',
-  'google/gemini-2.0-flash-001',
-]
+interface OpenRouterModelOption {
+  id: string
+  name: string
+  context_length: number | null
+}
 
 export default function SettingsPage() {
+  const router = useRouter()
   const [apiKey, setApiKey] = useState('')
-  const [model, setModel] = useState(MODELS[0])
+  const [model, setModel] = useState('anthropic/claude-3.5-sonnet')
+  const [modelQuery, setModelQuery] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [customFields, setCustomFields] = useState<CustomFieldTemplate[]>([])
   const [newFieldName, setNewFieldName] = useState('')
   const [role, setRole] = useState<UserRole>('user')
+  const [models, setModels] = useState<OpenRouterModelOption[]>([])
+  const [modelsError, setModelsError] = useState<string | null>(null)
+  const [password, setPassword] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordSaved, setPasswordSaved] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
 
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data } = await supabase
-        .from('users')
-        .select('preferred_model, role')
-        .eq('id', user.id)
-        .single()
-      if (data?.preferred_model) setModel(data.preferred_model)
-      if (data?.role) setRole(data.role)
-      setLoading(false)
-    })
+    fetch('/api/me')
+      .then(async r => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data.error ?? 'No se pudo cargar el perfil')
+        if (data.profile?.preferred_model) setModel(data.profile.preferred_model)
+        if (data.profile?.role) setRole(data.profile.role)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
   }, [])
 
   useEffect(() => {
     fetch('/api/custom-fields').then(r => r.json()).then(d => setCustomFields(d.fields ?? []))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/models')
+      .then(async r => {
+        const data = await r.json()
+        if (!r.ok) throw new Error(data.error ?? 'No se pudo cargar la lista de modelos')
+        setModels(data.models ?? [])
+      })
+      .catch(err => setModelsError(err instanceof Error ? err.message : 'No se pudo cargar la lista de modelos'))
   }, [])
 
   async function addField() {
@@ -75,6 +89,39 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 3000)
   }
 
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault()
+    setPasswordSaving(true)
+    setPasswordSaved(false)
+    setPasswordError(null)
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) {
+      setPasswordError(error.message)
+      setPasswordSaving(false)
+      return
+    }
+
+    setPassword('')
+    setPasswordSaving(false)
+    setPasswordSaved(true)
+    setTimeout(() => setPasswordSaved(false), 3000)
+  }
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  const filteredModels = models.filter(option => {
+    const q = modelQuery.trim().toLowerCase()
+    if (!q) return true
+    return option.id.toLowerCase().includes(q) || option.name.toLowerCase().includes(q)
+  }).slice(0, 50)
+
   if (loading) return <p className="text-slate-400 text-center py-12">Cargando...</p>
 
   return (
@@ -94,13 +141,33 @@ export default function SettingsPage() {
         </div>
         <div>
           <label className="block text-sm text-slate-400 mb-1">Modelo preferido</label>
-          <select
+          <input
+            type="search"
+            value={modelQuery}
+            onChange={e => setModelQuery(e.target.value)}
+            placeholder="Buscar modelo..."
+            className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-blue-500 mb-2"
+          />
+          <input
+            list="openrouter-models"
             value={model}
             onChange={e => setModel(e.target.value)}
-            className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-blue-500"
-          >
-            {MODELS.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+            placeholder="anthropic/claude-3.5-sonnet"
+            className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-blue-500 font-mono text-sm"
+          />
+          <datalist id="openrouter-models">
+            {filteredModels.map(option => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </datalist>
+          {modelsError && <p className="text-xs text-amber-400 mt-1">{modelsError}</p>}
+          {!modelsError && (
+            <p className="text-xs text-slate-500 mt-1">
+              {models.length > 0 ? `Modelos cargados: ${models.length}. Mostrando hasta 50 resultados filtrados.` : 'Cargando modelos de OpenRouter...'}
+            </p>
+          )}
         </div>
         <button
           type="submit"
@@ -110,6 +177,39 @@ export default function SettingsPage() {
           {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar'}
         </button>
       </form>
+      <div className="mt-8">
+        <h2 className="text-sm font-semibold text-slate-400 mb-3">Cuenta</h2>
+        <form onSubmit={handlePasswordChange} className="space-y-3">
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Nueva contraseña</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              minLength={8}
+              required
+              className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          {passwordError && <p className="text-xs text-red-400">{passwordError}</p>}
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={passwordSaving}
+              className="flex-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white font-medium py-3 rounded-xl"
+            >
+              {passwordSaved ? '✓ Contraseña actualizada' : passwordSaving ? 'Guardando...' : 'Cambiar contraseña'}
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="bg-red-900 hover:bg-red-800 text-white font-medium px-4 py-3 rounded-xl"
+            >
+              Logout
+            </button>
+          </div>
+        </form>
+      </div>
       <div className="mt-8">
         <h2 className="text-sm font-semibold text-slate-400 mb-3">Campos personalizados</h2>
         {customFields.map(f => (

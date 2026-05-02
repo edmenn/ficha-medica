@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUserProfile } from '@/lib/auth'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 // GET: validate token (used by accept-invite page)
@@ -51,16 +52,14 @@ export async function POST(req: NextRequest) {
 
   if (body.email) {
     // Create invitation flow — admin only
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
+    const profile = await getCurrentUserProfile()
+    if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+    const supabase = await createClient()
     const { data: invite, error } = await supabase
       .from('invitations')
-      .insert({ email: body.email, invited_by: user.id })
+      .insert({ email: body.email, invited_by: profile.id })
       .select()
       .single()
 
