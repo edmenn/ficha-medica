@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { parseAIResponse } from './ai-parser'
-import type { SurgicalFields } from '@/types'
 
 const SAMPLE_VALID = {
   paciente: 'García, Juan Carlos',

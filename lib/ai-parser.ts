@@ -27,7 +27,7 @@ export function parseAIResponse(raw: string): {
     return {
       fields: empty,
       record_fields: STANDARD_FIELDS.map(field_name => ({
-        field_name,
+        field_name: field_name as string,
         ai_value: null,
         final_value: null,
         confidence: 0,
@@ -42,7 +42,7 @@ export function parseAIResponse(raw: string): {
   }
 
   const record_fields = STANDARD_FIELDS.map(field_name => ({
-    field_name,
+    field_name: field_name as string,
     ai_value: fields[field_name],
     final_value: fields[field_name],
     confidence: fields[field_name] !== null ? 1 : 0,
