@@ -10,6 +10,8 @@ export default function SearchPage() {
   const [to, setTo] = useState('')
   const [cirujano, setCirujano] = useState('')
   const [sanatorio, setSanatorio] = useState('')
+  const [cirujanoOptions, setCirujanoOptions] = useState<string[]>([])
+  const [sanatorioOptions, setSanatorioOptions] = useState<string[]>([])
   const [records, setRecords] = useState<SurgicalRecord[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -28,6 +30,15 @@ export default function SearchPage() {
   }, [q, from, to, cirujano, sanatorio])
 
   useEffect(() => { search() }, [search])
+
+  useEffect(() => {
+    fetch('/api/search/filters')
+      .then(r => r.json())
+      .then(data => {
+        setCirujanoOptions(data.cirujanos ?? [])
+        setSanatorioOptions(data.sanatorios ?? [])
+      })
+  }, [])
 
   return (
     <div>
@@ -54,15 +65,29 @@ export default function SearchPage() {
       <div className="flex gap-2 mb-4">
         <div className="flex-1">
           <label className="text-xs text-slate-500 mb-1 block">Cirujano</label>
-          <input type="text" value={cirujano} onChange={e => setCirujano(e.target.value)}
-            placeholder="Cirujano..."
-            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 border border-slate-700 text-sm focus:outline-none focus:border-blue-500" />
+          <select
+            value={cirujano}
+            onChange={e => setCirujano(e.target.value)}
+            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+          >
+            <option value="">Todos</option>
+            {cirujanoOptions.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
         </div>
         <div className="flex-1">
           <label className="text-xs text-slate-500 mb-1 block">Sanatorio</label>
-          <input type="text" value={sanatorio} onChange={e => setSanatorio(e.target.value)}
-            placeholder="Sanatorio..."
-            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 border border-slate-700 text-sm focus:outline-none focus:border-blue-500" />
+          <select
+            value={sanatorio}
+            onChange={e => setSanatorio(e.target.value)}
+            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+          >
+            <option value="">Todos</option>
+            {sanatorioOptions.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
         </div>
       </div>
       {loading && <p className="text-slate-400 text-center py-4">Buscando...</p>}
