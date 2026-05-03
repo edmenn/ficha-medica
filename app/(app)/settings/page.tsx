@@ -26,6 +26,7 @@ export default function SettingsPage() {
   const [models, setModels] = useState<OpenRouterModelOption[]>([])
   const [modelsError, setModelsError] = useState<string | null>(null)
   const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordSaved, setPasswordSaved] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
@@ -105,9 +106,15 @@ export default function SettingsPage() {
 
   async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault()
-    setPasswordSaving(true)
-    setPasswordSaved(false)
     setPasswordError(null)
+    setPasswordSaved(false)
+
+    if (password !== passwordConfirm) {
+      setPasswordError('Las contraseñas no coinciden')
+      return
+    }
+
+    setPasswordSaving(true)
 
     const supabase = createClient()
     const { error } = await supabase.auth.updateUser({ password })
@@ -118,6 +125,7 @@ export default function SettingsPage() {
     }
 
     setPassword('')
+    setPasswordConfirm('')
     setPasswordSaving(false)
     setPasswordSaved(true)
     setTimeout(() => setPasswordSaved(false), 3000)
@@ -216,6 +224,17 @@ export default function SettingsPage() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
+              minLength={8}
+              required
+              className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Repetir nueva contraseña</label>
+            <input
+              type="password"
+              value={passwordConfirm}
+              onChange={e => setPasswordConfirm(e.target.value)}
               minLength={8}
               required
               className="w-full bg-slate-800 text-white rounded-lg px-4 py-3 border border-slate-700 focus:outline-none focus:border-blue-500"

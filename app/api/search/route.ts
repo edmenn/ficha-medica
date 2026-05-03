@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from('surgical_records')
     .select('*')
+    .order('final_data->>fecha_cirugia', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(50)
 
@@ -27,8 +28,8 @@ export async function GET(req: NextRequest) {
       `final_data->>'diagnostico'.ilike.%${q}%`
     )
   }
-  if (from) query = query.gte('created_at', from)
-  if (to) query = query.lte('created_at', to + 'T23:59:59Z')
+  if (from) query = query.gte('final_data->>fecha_cirugia', from)
+  if (to) query = query.lte('final_data->>fecha_cirugia', to)
   if (cirujano) query = query.ilike("final_data->>'cirujano'", `%${cirujano}%`)
   if (sanatorio) query = query.ilike("final_data->>'sanatorio'", `%${sanatorio}%`)
 

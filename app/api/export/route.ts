@@ -21,9 +21,10 @@ export async function GET(req: NextRequest) {
   const { data: records, error } = await supabase
     .from('surgical_records')
     .select('*')
-    .gte('created_at', from)
-    .lte('created_at', to + 'T23:59:59Z')
+    .gte('final_data->>fecha_cirugia', from)
+    .lte('final_data->>fecha_cirugia', to)
     .eq('status', 'final')
+    .order('final_data->>fecha_cirugia')
     .order('created_at')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
