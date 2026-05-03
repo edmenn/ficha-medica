@@ -15,10 +15,6 @@ export interface UserProfile {
 export interface SurgicalFields {
   paciente: string | null
   fecha_cirugia: string | null
-  fecha_fin: string | null
-  hora_inicio: string | null
-  hora_fin: string | null
-  duracion: string | null
   diagnostico: string | null
   procedimiento: string | null
   cirujano: string | null
@@ -83,8 +79,8 @@ export interface AnalyzeResponse {
 
 export interface ExportQuery {
   format: 'xlsx' | 'pdf'
-  from: string   // ISO date
-  to: string     // ISO date
+  from: string
+  to: string
   sanatorio?: string
   status?: RecordStatus
 }

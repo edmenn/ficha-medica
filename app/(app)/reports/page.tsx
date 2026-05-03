@@ -1,5 +1,7 @@
 import Link from 'next/link'
-import { getDurationMinutes } from '@/lib/record-utils'
+import { redirect } from 'next/navigation'
+import { getCurrentUserProfile } from '@/lib/auth'
+import { compareDateStringsDesc, isDateInRange, normalizeDateString } from '@/lib/record-utils'
 import { createClient } from '@/lib/supabase/server'
 import type { SurgicalRecord } from '@/types'
 
@@ -8,24 +10,20 @@ function getDefaultRange() {
   const from = new Date()
   from.setDate(1)
   return {
-    from: from.toISOString().split('T')[0],
-    to: to.toISOString().split('T')[0],
+    from: normalizeDateString(from.toISOString().split('T')[0]) ?? '',
+    to: normalizeDateString(to.toISOString().split('T')[0]) ?? '',
   }
 }
 
 function computeStats(records: SurgicalRecord[]) {
   const total = records.length
-  const durations = records
-    .map(record => getDurationMinutes(record.final_data))
-    .filter((value): value is number => typeof value === 'number' && value > 0)
-  const avgMin = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0
   const bySanatorio = records.reduce<Record<string, number>>((acc, record) => {
     const sanatorio = record.final_data.sanatorio ?? 'Sin especificar'
     acc[sanatorio] = (acc[sanatorio] ?? 0) + 1
     return acc
   }, {})
 
-  return { total, avgMin, bySanatorio }
+  return { total, bySanatorio }
 }
 
 function buildReportQuery(from: string, to: string, sanatorio: string) {
@@ -47,16 +45,17 @@ export default async function ReportsPage({
   const sanatorio = searchParams?.sanatorio ?? ''
   const searched = Boolean(searchParams?.from || searchParams?.to || searchParams?.sanatorio)
 
+  const profile = await getCurrentUserProfile()
+  if (profile?.role === 'admin') {
+    redirect('/admin/users')
+  }
+
   const supabase = await createClient()
   const [{ data }, { data: filterRows }] = await Promise.all([
     supabase
       .from('surgical_records')
       .select('*')
-      .eq('status', 'final')
-      .gte('final_data->>fecha_cirugia', from)
-      .lte('final_data->>fecha_cirugia', to)
-      .order('final_data->>fecha_cirugia', { ascending: false })
-      .order('created_at', { ascending: false }),
+      .eq('status', 'final'),
     supabase.from('surgical_records').select('final_data').order('final_data->>cirujano').limit(500),
   ])
 
@@ -66,10 +65,17 @@ export default async function ReportsPage({
       .filter((value): value is string => Boolean(value))
   )).sort((a, b) => a.localeCompare(b, 'es'))
 
-  const records = ((data ?? []) as SurgicalRecord[]).filter(record => {
-    if (!sanatorio.trim()) return true
-    return record.final_data.sanatorio?.trim() === sanatorio.trim()
-  })
+  const records = ((data ?? []) as SurgicalRecord[])
+    .filter(record => isDateInRange(record.final_data.fecha_cirugia, from, to))
+    .filter(record => {
+      if (!sanatorio.trim()) return true
+      return record.final_data.sanatorio?.trim() === sanatorio.trim()
+    })
+    .sort((left, right) => {
+      const byDate = compareDateStringsDesc(left.final_data.fecha_cirugia, right.final_data.fecha_cirugia)
+      if (byDate !== 0) return byDate
+      return right.created_at.localeCompare(left.created_at)
+    })
 
   const stats = computeStats(records)
   const queryString = buildReportQuery(from, to, sanatorio)
@@ -83,18 +89,20 @@ export default async function ReportsPage({
           <div className="flex-1">
             <label className="mb-1 block text-xs text-slate-500">Desde</label>
             <input
-              type="date"
+              type="text"
               name="from"
               defaultValue={from}
+              placeholder="dd-mm-aaaa"
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
           </div>
           <div className="flex-1">
             <label className="mb-1 block text-xs text-slate-500">Hasta</label>
             <input
-              type="date"
+              type="text"
               name="to"
               defaultValue={to}
+              placeholder="dd-mm-aaaa"
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -126,10 +134,8 @@ export default async function ReportsPage({
               <p className="mt-1 text-xs text-slate-400">cirugías</p>
             </div>
             <div className="rounded-xl bg-slate-800 p-4 text-center">
-              <p className="text-3xl font-bold text-green-400">
-                {stats.avgMin > 0 ? `${Math.floor(stats.avgMin / 60)}h ${stats.avgMin % 60}m` : '—'}
-              </p>
-              <p className="mt-1 text-xs text-slate-400">duración promedio</p>
+              <p className="text-3xl font-bold text-green-400">{Object.keys(stats.bySanatorio).length}</p>
+              <p className="mt-1 text-xs text-slate-400">sanatorios</p>
             </div>
           </div>
 

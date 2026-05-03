@@ -1,10 +1,12 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import type { Invitation, UserProfile } from '@/types'
 
-type AdminUserSummary = Pick<UserProfile, 'id' | 'email' | 'role' | 'created_at'> & {
+export type AdminUserSummary = Pick<UserProfile, 'id' | 'email' | 'role' | 'created_at'> & {
   preferred_model?: string | null
+  record_count?: number
 }
 
 interface Props {
@@ -80,9 +82,14 @@ export default function UsersAdminPanel({ initialUsers, initialInvites }: Props)
           <div key={u.id} className="bg-slate-800 rounded-xl p-3 mb-2 flex justify-between items-center">
             <div>
               <p className="text-white text-sm">{u.email}</p>
-              <p className="text-xs text-slate-500">{u.role}</p>
+              <p className="text-xs text-slate-500">{u.role} · {u.record_count ?? 0} registro(s)</p>
             </div>
-            <span className="text-xs text-green-400">● activo</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-green-400">● activo</span>
+              <Link href={`/admin/users/${u.id}`} className="text-xs text-blue-400">
+                Ver usuario
+              </Link>
+            </div>
           </div>
         ))}
       </div>

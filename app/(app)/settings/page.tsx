@@ -1,22 +1,27 @@
 import SettingsPageClient from '@/components/settings/SettingsPageClient'
 import { getCurrentUserProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
+import type { CustomFieldTemplate } from '@/types'
 
 export default async function SettingsPage() {
   const profile = await getCurrentUserProfile()
   if (!profile) return null
 
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('custom_field_templates')
-    .select('*')
-    .order('display_order')
+  let customFields: CustomFieldTemplate[] = []
+  if (profile.role === 'user') {
+    const supabase = await createClient()
+    const result = await supabase
+      .from('custom_field_templates')
+      .select('*')
+      .order('display_order')
+    customFields = (result.data ?? []) as CustomFieldTemplate[]
+  }
 
   return (
     <SettingsPageClient
       initialRole={profile.role}
       initialPreferredModel={profile.preferred_model}
-      initialCustomFields={data ?? []}
+      initialCustomFields={customFields}
     />
   )
 }

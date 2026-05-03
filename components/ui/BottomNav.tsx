@@ -11,6 +11,11 @@ const NAV_ITEMS = [
   { href: '/settings', icon: '⚙️', label: 'Config' },
 ]
 
+const ADMIN_NAV_ITEMS = [
+  { href: '/admin/users', icon: '🧑‍💼', label: 'Usuarios' },
+  { href: '/settings', icon: '⚙️', label: 'Cuenta' },
+]
+
 type NavItem = {
   href: string
   icon: string
@@ -22,13 +27,15 @@ export default function BottomNav({ role }: { role: UserRole }) {
   const pathname = usePathname()
   const items: NavItem[] = role === 'user'
     ? [...NAV_ITEMS.slice(0, 2), { href: '/new', icon: '📷', label: 'Nueva', cta: true }, ...NAV_ITEMS.slice(2)]
-    : NAV_ITEMS
+    : ADMIN_NAV_ITEMS
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
       <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
         {items.map(item => {
-          const active = pathname.startsWith(item.href)
+          const active = item.href === '/settings'
+            ? pathname === '/settings'
+            : pathname.startsWith(item.href)
           return (
             <Link
               key={item.href}

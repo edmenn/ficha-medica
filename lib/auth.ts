@@ -1,5 +1,5 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import type { UserProfile } from '@/types'
+import type { UserProfile, UserRole } from '@/types'
 
 export async function getCurrentUserProfile(): Promise<Pick<UserProfile, 'id' | 'email' | 'role' | 'preferred_model'> | null> {
   const supabase = await createClient()
@@ -23,4 +23,15 @@ export async function requireOperationalUser() {
     return { error: 'Admins no pueden operar registros', status: 403 as const }
   }
   return { profile }
+}
+
+export async function requireAdminUser() {
+  const profile = await getCurrentUserProfile()
+  if (!profile) return { error: 'Unauthorized', status: 401 as const }
+  if (profile.role !== 'admin') return { error: 'Forbidden', status: 403 as const }
+  return { profile }
+}
+
+export function getHomePathForRole(role: UserRole) {
+  return role === 'admin' ? '/admin/users' : '/records'
 }

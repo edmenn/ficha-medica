@@ -1,4 +1,7 @@
 import RecordCard from '@/components/records/RecordCard'
+import { redirect } from 'next/navigation'
+import { getCurrentUserProfile } from '@/lib/auth'
+import { compareDateStringsDesc, isDateInRange } from '@/lib/record-utils'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import type { SurgicalRecord } from '@/types'
 
@@ -26,16 +29,17 @@ export default async function SearchPage({
   const cirujano = searchParams?.cirujano ?? ''
   const status = searchParams?.status ?? ''
 
+  const profile = await getCurrentUserProfile()
+  if (profile?.role === 'admin') {
+    redirect('/admin/users')
+  }
+
   const supabase = await createClient()
   let query = supabase
     .from('surgical_records')
     .select('*')
-    .order('final_data->>fecha_cirugia', { ascending: false })
-    .order('created_at', { ascending: false })
     .limit(200)
 
-  if (from) query = query.gte('final_data->>fecha_cirugia', from)
-  if (to) query = query.lte('final_data->>fecha_cirugia', to)
   if (status) query = query.eq('status', status)
 
   const [{ data }, { data: filterRows }] = await Promise.all([
@@ -48,6 +52,10 @@ export default async function SearchPage({
   const selectedSanatorio = normalizeFilterValue(sanatorio)
 
   const filtered = ((data ?? []) as SurgicalRecord[]).filter(record => {
+    if ((from || to) && !isDateInRange(record.final_data?.fecha_cirugia, from, to)) {
+      return false
+    }
+
     if (selectedCirujano && normalizeFilterValue(record.final_data?.cirujano) !== selectedCirujano) {
       return false
     }
@@ -73,6 +81,10 @@ export default async function SearchPage({
 
     const normalizedHaystack = normalizeFilterValue(haystack)
     return terms.every(term => normalizedHaystack.includes(term))
+  }).sort((left, right) => {
+    const byDate = compareDateStringsDesc(left.final_data?.fecha_cirugia, right.final_data?.fecha_cirugia)
+    if (byDate !== 0) return byDate
+    return right.created_at.localeCompare(left.created_at)
   })
 
   const service = await createServiceClient()
@@ -113,18 +125,20 @@ export default async function SearchPage({
           <div className="flex-1">
             <label className="mb-1 block text-xs text-slate-500">Desde</label>
             <input
-              type="date"
+              type="text"
               name="from"
               defaultValue={from}
+              placeholder="dd-mm-aaaa"
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
           </div>
           <div className="flex-1">
             <label className="mb-1 block text-xs text-slate-500">Hasta</label>
             <input
-              type="date"
+              type="text"
               name="to"
               defaultValue={to}
+              placeholder="dd-mm-aaaa"
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
           </div>

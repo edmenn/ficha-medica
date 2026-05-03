@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx'
 import type { SurgicalRecord } from '@/types'
 
 const HEADERS = [
-  'Paciente', 'Fecha Inicio', 'Fecha Fin', 'Hora Inicio', 'Hora Fin', 'Duración',
+  'Paciente', 'Fecha',
   'Diagnóstico', 'Procedimiento', 'Cirujano', 'Ayudantes',
   'Anestesiólogo', 'Instrumentador', 'Sanatorio', 'Observaciones', 'Creado',
 ]
@@ -11,7 +11,7 @@ export function buildWorkbook(records: SurgicalRecord[]): Buffer {
   const rows = records.map(r => {
     const f = r.final_data
     return [
-      f.paciente, f.fecha_cirugia, f.fecha_fin ?? null, f.hora_inicio, f.hora_fin, f.duracion,
+      f.paciente, f.fecha_cirugia,
       f.diagnostico, f.procedimiento, f.cirujano, f.ayudantes,
       f.anestesiologo, f.instrumentador, f.sanatorio, f.observaciones,
       new Date(r.created_at).toLocaleDateString('es-AR'),

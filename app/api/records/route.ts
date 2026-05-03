@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOperationalUser } from '@/lib/auth'
 import { insertSurgicalRecord } from '@/lib/records-db'
-import { normalizeSurgicalFields, validateSurgicalFields } from '@/lib/record-utils'
+import { compareDateStringsDesc, normalizeSurgicalFields, validateSurgicalFields } from '@/lib/record-utils'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import type { RecordStatus, SurgicalFields } from '@/types'
 
@@ -22,23 +22,27 @@ export async function GET(req: NextRequest) {
   const includeImages = searchParams.get('includeImages') === '1'
   const offset = (page - 1) * limit
 
-  const { data, error, count } = await supabase
+  const { data, error } = await supabase
     .from('surgical_records')
-    .select('*', { count: 'exact' })
-    .order('final_data->>fecha_cirugia', { ascending: true })
-    .order('final_data->>hora_inicio', { ascending: true })
-    .order('created_at', { ascending: true })
-    .range(offset, offset + limit - 1)
+    .select('*')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  const sortedData = (data ?? []).sort((left, right) => {
+    const byDate = compareDateStringsDesc(left.final_data?.fecha_cirugia, right.final_data?.fecha_cirugia)
+    if (byDate !== 0) return byDate
+    return right.created_at.localeCompare(left.created_at)
+  })
+  const count = sortedData.length
+  const pagedData = sortedData.slice(offset, offset + limit)
+
   if (!includeImages) {
-    const records = (data ?? []).map(record => ({ ...record, image_url: null }))
+    const records = pagedData.map(record => ({ ...record, image_url: null }))
     return NextResponse.json({ records, total: count, page, pageSize: limit })
   }
 
   const service = await createServiceClient()
-  const records = await Promise.all((data ?? []).map(async record => {
+  const records = await Promise.all(pagedData.map(async record => {
     const imagePath = getPrimaryImagePath(record)
     if (!imagePath || imagePath === 'manual-entry') {
       return { ...record, image_url: null }

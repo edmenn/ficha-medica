@@ -3,11 +3,7 @@ import { parseAIResponse } from './ai-parser'
 
 const SAMPLE_VALID = {
   paciente: 'García, Juan Carlos',
-  fecha_cirugia: '2025-04-12',
-  fecha_fin: '2025-04-12',
-  hora_inicio: '08:30',
-  hora_fin: '10:15',
-  duracion: '5min',
+  fecha_cirugia: '12-04-2025',
   diagnostico: 'Apendicitis aguda',
   procedimiento: 'Apendicectomía laparoscópica',
   cirujano: 'Dr. Osvaldo Pérez',
@@ -42,21 +38,14 @@ describe('parseAIResponse', () => {
     const raw = JSON.stringify({
       paciente: 'García, Juan Carlos',
       fecha_inicio: '21-04-26',
-      fecha_finalizacion: '21/04/26',
-      hora_de_inicio: '14.12',
-      hora_salida: '16;01',
       anestesista: 'Dra. López',
       instrumentadora: 'Enf. Rodríguez',
       hospital: 'Sanatorio San Lucas',
     })
     const result = parseAIResponse(raw)
-    expect(result.fields.fecha_cirugia).toBe('2026-04-21')
-    expect(result.fields.fecha_fin).toBe('2026-04-21')
-    expect(result.fields.hora_inicio).toBe('14:12')
-    expect(result.fields.hora_fin).toBe('16:01')
+    expect(result.fields.fecha_cirugia).toBe('21-04-2026')
     expect(result.fields.instrumentador).toBe('Enf. Rodríguez')
     expect(result.fields.sanatorio).toBe('Sanatorio San Lucas')
-    expect(result.fields.duracion).toBe('1h 49min')
   })
 
   it('returns null for missing fields, not invented values', () => {
@@ -66,10 +55,11 @@ describe('parseAIResponse', () => {
     expect(result.fields.paciente).toBe('Test')
   })
 
-  it('derives duration from normalized start and end times', () => {
-    const raw = JSON.stringify(SAMPLE_VALID)
-    const result = parseAIResponse(raw)
-    expect(result.fields.duracion).toBe('1h 45min')
+  it('normalizes short and iso dates to dd-mm-aaaa', () => {
+    const shortDate = parseAIResponse(JSON.stringify({ fecha_cirugia: '22-01-26' }))
+    const isoDate = parseAIResponse(JSON.stringify({ fecha_cirugia: '2026-01-19' }))
+    expect(shortDate.fields.fecha_cirugia).toBe('22-01-2026')
+    expect(isoDate.fields.fecha_cirugia).toBe('19-01-2026')
   })
 
   it('returns empty fields on unparseable response', () => {

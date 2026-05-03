@@ -3,6 +3,7 @@ import { getCurrentUserProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { buildWorkbook } from '@/lib/export/excel'
 import { buildPDF } from '@/lib/export/pdf'
+import { compareDateStringsDesc, isDateInRange } from '@/lib/record-utils'
 import type { ExportQuery } from '@/types'
 
 export async function GET(req: NextRequest) {
@@ -24,11 +25,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from('surgical_records')
     .select('*')
-    .gte('final_data->>fecha_cirugia', from)
-    .lte('final_data->>fecha_cirugia', to)
     .eq('status', 'final')
-    .order('final_data->>fecha_cirugia')
-    .order('created_at')
 
   if (profile.role !== 'admin') {
     query = query.eq('user_id', profile.id)
@@ -42,15 +39,23 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  const filteredRecords = (records ?? [])
+    .filter(record => isDateInRange(record.final_data?.fecha_cirugia, from, to))
+    .sort((left, right) => {
+      const byDate = compareDateStringsDesc(left.final_data?.fecha_cirugia, right.final_data?.fecha_cirugia)
+      if (byDate !== 0) return byDate
+      return right.created_at.localeCompare(left.created_at)
+    })
+
   await supabase.from('audit_log').insert({
     user_id: profile.id,
     record_id: null,
     action: 'exported',
-    diff: { format, from, to, sanatorio, count: records.length },
+    diff: { format, from, to, sanatorio, count: filteredRecords.length },
   })
 
   if (format === 'xlsx') {
-    const buffer = buildWorkbook(records)
+    const buffer = buildWorkbook(filteredRecords)
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -60,7 +65,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (format === 'pdf') {
-    const buffer = await buildPDF(records, from, to)
+    const buffer = await buildPDF(filteredRecords, from, to)
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/pdf',

@@ -32,11 +32,7 @@ describe('GET /api/records', () => {
   })
 
   it('defaults to page 1 for non-numeric page param', async () => {
-    const rangeMock = vi.fn().mockResolvedValue({ data: [], error: null, count: 0 })
-    const orderCreatedAtMock = vi.fn(() => ({ range: rangeMock }))
-    const orderHoraMock = vi.fn(() => ({ order: orderCreatedAtMock }))
-    const orderFechaMock = vi.fn(() => ({ order: orderHoraMock }))
-    const selectMock = vi.fn(() => ({ order: orderFechaMock }))
+    const selectMock = vi.fn().mockResolvedValue({ data: [], error: null })
 
     createClientMock.mockResolvedValue({
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'u1' } } }) },
@@ -46,7 +42,7 @@ describe('GET /api/records', () => {
     const { GET } = await import('./route')
     const response = await GET(new NextRequest('http://localhost/api/records?page=abc'))
 
-    expect(rangeMock).toHaveBeenCalledWith(0, 19)
+    expect(selectMock).toHaveBeenCalledWith('*')
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({ page: 1, pageSize: 20, total: 0, records: [] })
   })

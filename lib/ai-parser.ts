@@ -3,9 +3,6 @@ import { emptySurgicalFields, normalizeSurgicalFields } from './record-utils'
 
 const FIELD_ALIASES: Record<string, keyof SurgicalFields> = {
   fecha_inicio: 'fecha_cirugia',
-  fecha_finalizacion: 'fecha_fin',
-  hora_de_inicio: 'hora_inicio',
-  hora_salida: 'hora_fin',
   anestesista: 'anestesiologo',
   instrumentadora: 'instrumentador',
   hospital: 'sanatorio',

@@ -1,7 +1,7 @@
-import { notFound } from 'next/navigation'
-import RecordDetailClient from '@/components/records/RecordDetailClient'
+import { notFound, redirect } from 'next/navigation'
+import AdminRecordDetailPage from '@/components/admin/AdminRecordDetailPage'
 import { getCurrentUserProfile } from '@/lib/auth'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import type { SurgicalRecord } from '@/types'
 
 function getImagePaths(record: { image_paths?: string[] | null; image_path?: string | null }) {
@@ -10,16 +10,32 @@ function getImagePaths(record: { image_paths?: string[] | null; image_path?: str
   return []
 }
 
-export default async function RecordDetailPage({ params }: { params: { id: string } }) {
+export default async function AdminRecordPage({
+  params,
+}: {
+  params: { id: string; recordId: string }
+}) {
   const profile = await getCurrentUserProfile()
-  if (profile?.role === 'admin') {
-    notFound()
+  if (!profile) {
+    redirect('/login')
+  }
+  if (profile.role !== 'admin') {
+    redirect('/records')
   }
 
-  const supabase = await createClient()
+  const service = await createServiceClient()
   const [{ data: record }, { data: customFields }] = await Promise.all([
-    supabase.from('surgical_records').select('*').eq('id', params.id).single(),
-    supabase.from('custom_field_templates').select('*').order('display_order'),
+    service
+      .from('surgical_records')
+      .select('*')
+      .eq('id', params.recordId)
+      .eq('user_id', params.id)
+      .maybeSingle(),
+    service
+      .from('custom_field_templates')
+      .select('*')
+      .eq('user_id', params.id)
+      .order('display_order'),
   ])
 
   if (!record) {
@@ -29,7 +45,6 @@ export default async function RecordDetailPage({ params }: { params: { id: strin
   const imagePaths = getImagePaths(record)
   let imageUrls: string[] = []
   if (imagePaths.length > 0 && imagePaths[0] !== 'manual-entry') {
-    const service = await createServiceClient()
     imageUrls = (await Promise.all(imagePaths.map(async imagePath => {
       const { data: signed } = await service.storage
         .from('surgical-images')
@@ -39,7 +54,8 @@ export default async function RecordDetailPage({ params }: { params: { id: strin
   }
 
   return (
-    <RecordDetailClient
+    <AdminRecordDetailPage
+      userId={params.id}
       record={{
         ...(record as SurgicalRecord),
         image_url: imageUrls[0] ?? null,

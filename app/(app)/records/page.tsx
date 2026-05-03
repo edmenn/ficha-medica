@@ -1,5 +1,8 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import RecordListItem from '@/components/records/RecordListItem'
+import { compareDateStringsDesc } from '@/lib/record-utils'
+import { getCurrentUserProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import type { SurgicalRecord } from '@/types'
 
@@ -20,17 +23,24 @@ export default async function RecordsPage({
   const pageSize = PAGE_SIZE_OPTIONS.includes(rawPageSize) ? rawPageSize : 20
   const offset = (page - 1) * pageSize
 
-  const supabase = await createClient()
-  const { data, count } = await supabase
-    .from('surgical_records')
-    .select('*', { count: 'exact' })
-    .order('final_data->>fecha_cirugia', { ascending: true })
-    .order('final_data->>hora_inicio', { ascending: true })
-    .order('created_at', { ascending: true })
-    .range(offset, offset + pageSize - 1)
+  const profile = await getCurrentUserProfile()
+  if (profile?.role === 'admin') {
+    redirect('/admin/users')
+  }
 
-  const records = (data ?? []) as SurgicalRecord[]
-  const total = count ?? 0
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('surgical_records')
+    .select('*')
+
+  const sortedRecords = ((data ?? []) as SurgicalRecord[]).sort((left, right) => {
+    const byDate = compareDateStringsDesc(left.final_data.fecha_cirugia, right.final_data.fecha_cirugia)
+    if (byDate !== 0) return byDate
+    return right.created_at.localeCompare(left.created_at)
+  })
+
+  const total = sortedRecords.length
+  const records = sortedRecords.slice(offset, offset + pageSize)
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   return (
@@ -42,17 +52,24 @@ export default async function RecordsPage({
         </div>
         <div>
           <label className="mb-1 block text-xs text-slate-500">Ver</label>
-          <div className="flex gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1 text-sm">
-            {PAGE_SIZE_OPTIONS.map(option => (
-              <Link
-                key={option}
-                href={buildPageHref(1, option)}
-                className={`rounded px-2 py-1 ${pageSize === option ? 'bg-blue-600 text-white' : 'text-slate-300'}`}
-              >
-                {option}
-              </Link>
-            ))}
-          </div>
+          <form className="flex items-center gap-2">
+            <input type="hidden" name="page" value="1" />
+            <select
+              name="pageSize"
+              defaultValue={String(pageSize)}
+              className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+            >
+              {PAGE_SIZE_OPTIONS.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="rounded-lg bg-slate-800 px-3 py-2 text-sm text-white"
+            >
+              Aplicar
+            </button>
+          </form>
         </div>
       </div>
 

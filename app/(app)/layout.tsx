@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <main className="pb-20 max-w-lg mx-auto px-4 pt-4">{children}</main>
+      <main className={`pb-20 mx-auto px-4 pt-4 ${profile.role === 'admin' ? 'max-w-6xl' : 'max-w-lg'}`}>{children}</main>
       <BottomNav role={profile.role} />
     </div>
   )

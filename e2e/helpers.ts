@@ -78,8 +78,8 @@ export async function login(page: Page, email: string, password: string) {
     sameSite: 'Lax' as const,
   })))
 
-  await page.goto('/records')
-  await expect(page).toHaveURL(/\/records$/)
+  await page.goto('/')
+  await expect(page).not.toHaveURL(/\/login$/)
 }
 
 export function requireEnv(...keys: string[]) {
