@@ -9,8 +9,10 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const page = parseInt(searchParams.get('page') ?? '1')
-  const limit = 20
+  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
+  const requestedPageSize = parseInt(searchParams.get('pageSize') ?? '20')
+  const limit = [10, 20, 50, 100].includes(requestedPageSize) ? requestedPageSize : 20
+  const includeImages = searchParams.get('includeImages') === '1'
   const offset = (page - 1) * limit
 
   const { data, error, count } = await supabase
@@ -20,6 +22,11 @@ export async function GET(req: NextRequest) {
     .range(offset, offset + limit - 1)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (!includeImages) {
+    const records = (data ?? []).map(record => ({ ...record, image_url: null }))
+    return NextResponse.json({ records, total: count, page, pageSize: limit })
+  }
 
   const service = await createServiceClient()
   const records = await Promise.all((data ?? []).map(async record => {
@@ -34,7 +41,7 @@ export async function GET(req: NextRequest) {
     return { ...record, image_url: signed?.signedUrl ?? null }
   }))
 
-  return NextResponse.json({ records, total: count, page })
+  return NextResponse.json({ records, total: count, page, pageSize: limit })
 }
 
 export async function POST(req: NextRequest) {
