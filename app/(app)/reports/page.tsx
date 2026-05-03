@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getDurationMinutes } from '@/lib/record-utils'
 import type { SurgicalRecord } from '@/types'
 
@@ -33,9 +33,16 @@ export default function ReportsPage() {
   const [from, setFrom] = useState(defaults.from)
   const [to, setTo] = useState(defaults.to)
   const [sanatorio, setSanatorio] = useState('')
+  const [sanatorioOptions, setSanatorioOptions] = useState<string[]>([])
   const [records, setRecords] = useState<SurgicalRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/search/filters')
+      .then(r => r.json())
+      .then(data => setSanatorioOptions(data.sanatorios ?? []))
+  }, [])
 
   function buildQueryString() {
     const params = new URLSearchParams({
@@ -84,13 +91,16 @@ export default function ReportsPage() {
       </div>
       <div className="mb-4">
         <label className="text-xs text-slate-500 mb-1 block">Sanatorio</label>
-        <input
-          type="text"
+        <select
           value={sanatorio}
           onChange={e => setSanatorio(e.target.value)}
-          placeholder="Todos los sanatorios"
           className="w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
-        />
+        >
+          <option value="">Todos</option>
+          {sanatorioOptions.map(option => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
       </div>
 
       <button

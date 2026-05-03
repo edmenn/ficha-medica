@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
+function normalizeFilterValue(value: string | null | undefined): string {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+}
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -23,8 +31,6 @@ export async function GET(req: NextRequest) {
 
   if (from) query = query.gte('final_data->>fecha_cirugia', from)
   if (to) query = query.lte('final_data->>fecha_cirugia', to)
-  if (cirujano) query = query.ilike("final_data->>'cirujano'", `%${cirujano}%`)
-  if (sanatorio) query = query.ilike("final_data->>'sanatorio'", `%${sanatorio}%`)
   if (status) query = query.eq('status', status)
 
   const { data, error } = await query
@@ -36,7 +42,20 @@ export async function GET(req: NextRequest) {
     .split(/\s+/)
     .filter(Boolean)
 
+  const selectedCirujano = normalizeFilterValue(cirujano)
+  const selectedSanatorio = normalizeFilterValue(sanatorio)
+
   const filtered = (data ?? []).filter(record => {
+    if (selectedCirujano) {
+      const recordCirujano = normalizeFilterValue(record.final_data?.cirujano)
+      if (recordCirujano !== selectedCirujano) return false
+    }
+
+    if (selectedSanatorio) {
+      const recordSanatorio = normalizeFilterValue(record.final_data?.sanatorio)
+      if (recordSanatorio !== selectedSanatorio) return false
+    }
+
     if (terms.length === 0) return true
 
     const haystack = [
@@ -51,9 +70,10 @@ export async function GET(req: NextRequest) {
     ]
       .filter(Boolean)
       .join(' ')
-      .toLowerCase()
 
-    return terms.every(term => haystack.includes(term))
+    const normalizedHaystack = normalizeFilterValue(haystack)
+
+    return terms.every(term => normalizedHaystack.includes(term))
   })
 
   const service = await createServiceClient()

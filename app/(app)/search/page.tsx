@@ -8,9 +8,7 @@ export default function SearchPage() {
   const [q, setQ] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [cirujano, setCirujano] = useState('')
   const [sanatorio, setSanatorio] = useState('')
-  const [cirujanoOptions, setCirujanoOptions] = useState<string[]>([])
   const [sanatorioOptions, setSanatorioOptions] = useState<string[]>([])
   const [records, setRecords] = useState<SurgicalRecord[]>([])
   const [loading, setLoading] = useState(false)
@@ -21,13 +19,12 @@ export default function SearchPage() {
     if (q) params.set('q', q)
     if (from) params.set('from', from)
     if (to) params.set('to', to)
-    if (cirujano) params.set('cirujano', cirujano)
     if (sanatorio) params.set('sanatorio', sanatorio)
     const res = await fetch(`/api/search?${params}`)
     const data = await res.json()
     setRecords(data.records ?? [])
     setLoading(false)
-  }, [q, from, to, cirujano, sanatorio])
+  }, [q, from, to, sanatorio])
 
   useEffect(() => { search() }, [search])
 
@@ -35,7 +32,6 @@ export default function SearchPage() {
     fetch('/api/search/filters')
       .then(r => r.json())
       .then(data => {
-        setCirujanoOptions(data.cirujanos ?? [])
         setSanatorioOptions(data.sanatorios ?? [])
       })
   }, [])
@@ -62,33 +58,18 @@ export default function SearchPage() {
             className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 border border-slate-700 text-sm focus:outline-none focus:border-blue-500" />
         </div>
       </div>
-      <div className="flex gap-2 mb-4">
-        <div className="flex-1">
-          <label className="text-xs text-slate-500 mb-1 block">Cirujano</label>
-          <select
-            value={cirujano}
-            onChange={e => setCirujano(e.target.value)}
-            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
-          >
-            <option value="">Todos</option>
-            {cirujanoOptions.map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex-1">
-          <label className="text-xs text-slate-500 mb-1 block">Sanatorio</label>
-          <select
-            value={sanatorio}
-            onChange={e => setSanatorio(e.target.value)}
-            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
-          >
-            <option value="">Todos</option>
-            {sanatorioOptions.map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
-          </select>
-        </div>
+      <div className="mb-4">
+        <label className="text-xs text-slate-500 mb-1 block">Sanatorio</label>
+        <select
+          value={sanatorio}
+          onChange={e => setSanatorio(e.target.value)}
+          className="w-full bg-slate-800 text-white rounded-lg px-3 py-2 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+        >
+          <option value="">Todos</option>
+          {sanatorioOptions.map(option => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
       </div>
       {loading && <p className="text-slate-400 text-center py-4">Buscando...</p>}
       {!loading && records.length === 0 && q && (
