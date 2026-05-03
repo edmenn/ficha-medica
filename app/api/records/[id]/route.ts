@@ -101,11 +101,23 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { data: record } = await supabase
+    .from('surgical_records')
+    .select('image_path')
+    .eq('id', params.id)
+    .single()
+
   const { error } = await supabase
     .from('surgical_records')
     .delete()
     .eq('id', params.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (record?.image_path && record.image_path !== 'manual-entry') {
+    const service = await createServiceClient()
+    await service.storage.from('surgical-images').remove([record.image_path])
+  }
+
   return NextResponse.json({ ok: true })
 }
