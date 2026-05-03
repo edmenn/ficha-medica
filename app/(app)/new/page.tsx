@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import ImageCapture from '@/components/capture/ImageCapture'
 import RecordForm from '@/components/records/RecordForm'
-import { isLikelyRotatedDocument, prepareImageForUpload } from '@/lib/imageUtils'
+import { prepareImageForUpload } from '@/lib/imageUtils'
 import type { AnalyzeResponse, CustomFieldTemplate, SurgicalFields } from '@/types'
 
 type Step = 'capture' | 'processing' | 'review'
@@ -30,18 +30,6 @@ export default function NewRecordPage() {
     setStep('processing')
     setError(null)
     setPreview(URL.createObjectURL(file))
-
-    try {
-      if (await isLikelyRotatedDocument(file)) {
-        setError('La imagen parece estar rotada. Enderezala y volvé a cargarla antes de analizar.')
-        setStep('capture')
-        return
-      }
-    } catch {
-      setError('No se pudo validar la orientación de la imagen')
-      setStep('capture')
-      return
-    }
 
     let prepared: File
     try {

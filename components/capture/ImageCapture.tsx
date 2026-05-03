@@ -18,6 +18,9 @@ export default function ImageCapture({ onImageSelected, disabled }: Props) {
 
   return (
     <div className="space-y-3">
+      <div className="rounded-xl border border-amber-700/50 bg-amber-950/30 p-3 text-sm text-amber-200">
+        Para mejores resultados, subí la ficha derecha y en posición vertical. Las imágenes rotadas suelen extraer peor.
+      </div>
       <button
         type="button"
         disabled={disabled}

@@ -74,11 +74,6 @@ export async function compressImage(file: File, maxBytes = MAX_SIZE_BYTES): Prom
   return canvasToBlob(canvas, maxBytes)
 }
 
-export async function isLikelyRotatedDocument(file: File): Promise<boolean> {
-  const img = await loadImage(file)
-  return img.width > img.height
-}
-
 export async function prepareImageForUpload(file: File): Promise<File> {
   let processed: File = file
   if (needsHeicConversion(file)) {
