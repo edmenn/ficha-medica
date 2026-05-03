@@ -14,6 +14,10 @@ export async function PATCH(req: NextRequest) {
     update.openrouter_key = encrypt(body.openrouter_key.trim())
   }
   if (body.preferred_model) {
+    const MODEL_PATTERN = /^[a-z0-9\-]+\/[a-z0-9\-:.]+$/
+    if (!MODEL_PATTERN.test(body.preferred_model)) {
+      return NextResponse.json({ error: 'Modelo inválido' }, { status: 400 })
+    }
     update.preferred_model = body.preferred_model
   }
 

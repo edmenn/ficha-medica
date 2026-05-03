@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     const inviteUrl = new URL(`/accept-invite/${invite.token}`, req.nextUrl.origin).toString()
-    return NextResponse.json({ token: invite.token, url: inviteUrl })
+    return NextResponse.json({ token: invite.token, url: inviteUrl, invite })
   }
 
   return NextResponse.json({ error: 'Bad request' }, { status: 400 })

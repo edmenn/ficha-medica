@@ -9,6 +9,10 @@ function normalizeFilterValue(value: string | null | undefined): string {
     .toLowerCase()
 }
 
+function getPrimaryImagePath(record: { image_paths?: string[] | null; image_path?: string | null }) {
+  return record.image_paths?.[0] ?? record.image_path ?? null
+}
+
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -78,13 +82,14 @@ export async function GET(req: NextRequest) {
 
   const service = await createServiceClient()
   const records = await Promise.all(filtered.slice(0, 50).map(async record => {
-    if (!record.image_path || record.image_path === 'manual-entry') {
+    const imagePath = getPrimaryImagePath(record)
+    if (!imagePath || imagePath === 'manual-entry') {
       return { ...record, image_url: null }
     }
 
     const { data: signed } = await service.storage
       .from('surgical-images')
-      .createSignedUrl(record.image_path, 3600)
+      .createSignedUrl(imagePath, 3600)
 
     return { ...record, image_url: signed?.signedUrl ?? null }
   }))

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUserProfile } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { buildWorkbook } from '@/lib/export/excel'
 import { buildPDF } from '@/lib/export/pdf'
 import type { ExportQuery } from '@/types'
 
 export async function GET(req: NextRequest) {
+  const profile = await getCurrentUserProfile()
+  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const format = searchParams.get('format') as ExportQuery['format']
@@ -28,6 +30,10 @@ export async function GET(req: NextRequest) {
     .order('final_data->>fecha_cirugia')
     .order('created_at')
 
+  if (profile.role !== 'admin') {
+    query = query.eq('user_id', profile.id)
+  }
+
   if (sanatorio) {
     query = query.ilike("final_data->>'sanatorio'", `%${sanatorio}%`)
   }
@@ -37,7 +43,7 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   await supabase.from('audit_log').insert({
-    user_id: user.id,
+    user_id: profile.id,
     record_id: null,
     action: 'exported',
     diff: { format, from, to, sanatorio, count: records.length },

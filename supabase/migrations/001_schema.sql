@@ -19,22 +19,13 @@ create table public.surgical_records (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
   image_path text not null,
+  image_paths text[] not null default '{}',
   ai_raw_response jsonb,
   extracted_data jsonb not null default '{}',
   final_data jsonb not null default '{}',
   status record_status not null default 'draft',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
-);
-
--- Per-field traceability
-create table public.record_fields (
-  id uuid primary key default gen_random_uuid(),
-  record_id uuid not null references public.surgical_records(id) on delete cascade,
-  field_name text not null,
-  ai_value text,
-  final_value text,
-  confidence float not null default 0
 );
 
 -- Custom field templates per user

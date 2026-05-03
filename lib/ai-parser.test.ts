@@ -66,13 +66,9 @@ describe('parseAIResponse', () => {
     expect(result.fields.paciente).toBe('Test')
   })
 
-  it('assigns confidence 1.0 to present fields and 0 to null fields', () => {
+  it('derives duration from normalized start and end times', () => {
     const raw = JSON.stringify(SAMPLE_VALID)
     const result = parseAIResponse(raw)
-    const pacienteField = result.record_fields.find(f => f.field_name === 'paciente')
-    const obsField = result.record_fields.find(f => f.field_name === 'observaciones')
-    expect(pacienteField?.confidence).toBe(1)
-    expect(obsField?.confidence).toBe(0)
     expect(result.fields.duracion).toBe('1h 45min')
   })
 

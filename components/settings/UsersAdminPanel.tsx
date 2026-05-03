@@ -1,11 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { Invitation, UserProfile } from '@/types'
 
-export default function UsersAdminPanel() {
-  const [users, setUsers] = useState<UserProfile[]>([])
-  const [invites, setInvites] = useState<Invitation[]>([])
+type AdminUserSummary = Pick<UserProfile, 'id' | 'email' | 'role' | 'created_at'> & {
+  preferred_model?: string | null
+}
+
+interface Props {
+  initialUsers: AdminUserSummary[]
+  initialInvites: Invitation[]
+}
+
+export default function UsersAdminPanel({ initialUsers, initialInvites }: Props) {
+  const [users, setUsers] = useState<AdminUserSummary[]>(initialUsers)
+  const [invites, setInvites] = useState<Invitation[]>(initialInvites)
   const [email, setEmail] = useState('')
   const [newUserEmail, setNewUserEmail] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
@@ -14,11 +23,6 @@ export default function UsersAdminPanel() {
   const [loading, setLoading] = useState(false)
   const [creatingUser, setCreatingUser] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/api/users').then(r => r.json()).then(d => setUsers(d.users ?? []))
-    fetch('/api/invites/list').then(r => r.json()).then(d => setInvites(d.invites ?? []))
-  }, [])
 
   async function sendInvite(e: React.FormEvent) {
     e.preventDefault()
@@ -36,6 +40,9 @@ export default function UsersAdminPanel() {
       return
     }
     setInviteUrl(data.url)
+    if (data.invite) {
+      setInvites(prev => [data.invite, ...prev])
+    }
     setEmail('')
     setLoading(false)
   }

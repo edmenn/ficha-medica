@@ -1,75 +1,117 @@
+import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { requireOperationalUser } from '@/lib/auth'
 import { decrypt } from '@/lib/crypto'
-import { createOpenRouterClient, EXTRACTION_PROMPT } from '@/lib/openrouter'
 import { parseAIResponse } from '@/lib/ai-parser'
-import { normalizeSurgicalFields } from '@/lib/record-utils'
-import type { AnalyzeResponse } from '@/types'
+import { buildExtractionPrompt, createOpenRouterClient, MODELS_WITH_JSON_MODE } from '@/lib/openrouter'
+import { insertSurgicalRecord, selectRecordForMerge, updateMergedRecord } from '@/lib/records-db'
+import { mergeSurgicalFieldsFillNulls, normalizeSurgicalFields } from '@/lib/record-utils'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+import type { AnalyzeResponse, SurgicalFields } from '@/types'
+
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
+const MAX_SIZE_BYTES = 10 * 1024 * 1024
+
+function safeImagePath(userId: string, mimeType: string): string {
+  const ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg').replace('heif', 'heic') ?? 'jpg'
+  return `${userId}/${randomUUID()}.${ext}`
+}
+
+function validateImageFile(imageFile: File | null) {
+  if (!imageFile) return 'No image provided'
+  if (!ALLOWED_MIME.has(imageFile.type)) {
+    return 'Formato no soportado. Usá JPG, PNG, WebP o HEIC.'
+  }
+  if (imageFile.size > MAX_SIZE_BYTES) {
+    return 'Imagen demasiado grande (máximo 10MB)'
+  }
+  return null
+}
+
+async function uploadAndSign(service: Awaited<ReturnType<typeof createServiceClient>>, userId: string, file: File) {
+  const path = safeImagePath(userId, file.type)
+  const buffer = await file.arrayBuffer()
+  const { error: uploadError } = await service.storage
+    .from('surgical-images')
+    .upload(path, buffer, { contentType: file.type })
+
+  if (uploadError) {
+    return { error: 'Error al subir imagen' as const }
+  }
+
+  const { data: signedData, error: signedError } = await service.storage
+    .from('surgical-images')
+    .createSignedUrl(path, 300)
+
+  if (signedError || !signedData?.signedUrl) {
+    await service.storage.from('surgical-images').remove([path])
+    return { error: 'Error al procesar imagen' as const }
+  }
+
+  return { path, signedUrl: signedData.signedUrl }
+}
 
 export async function POST(req: NextRequest) {
+  const auth = await requireOperationalUser()
+  if ('error' in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const service = await createServiceClient()
+  const profile = auth.profile
 
   const formData = await req.formData()
   const imageFile = formData.get('image') as File | null
   const rotatedImageFile = formData.get('image_rotated') as File | null
-  if (!imageFile) return NextResponse.json({ error: 'No image provided' }, { status: 400 })
+  const existingRecordId = formData.get('record_id')?.toString() ?? null
+  const confirmDuplicate = formData.get('confirm_duplicate') === '1'
 
-  // Get user's OpenRouter key
-  const { data: profile } = await supabase
+  const imageError = validateImageFile(imageFile)
+  if (imageError) return NextResponse.json({ error: imageError }, { status: 400 })
+
+  const rotatedError = rotatedImageFile ? validateImageFile(rotatedImageFile) : null
+  if (rotatedError) return NextResponse.json({ error: rotatedError }, { status: 400 })
+
+  const { data: userSettings } = await supabase
     .from('users')
     .select('openrouter_key, preferred_model')
-    .eq('id', user.id)
+    .eq('id', profile.id)
     .single()
 
-  if (!profile?.openrouter_key) {
+  if (!userSettings?.openrouter_key) {
     return NextResponse.json({ error: 'Configure tu API key de OpenRouter en Configuración' }, { status: 422 })
   }
 
   let apiKey: string
   try {
-    apiKey = decrypt(profile.openrouter_key)
+    apiKey = decrypt(userSettings.openrouter_key)
   } catch {
     return NextResponse.json({ error: 'API key inválida, reconfigurala en Configuración' }, { status: 422 })
   }
 
-  // Upload image to Supabase Storage
-  const service = await createServiceClient()
-  const imagePath = `${user.id}/${Date.now()}-${imageFile.name}`
-  const imageBuffer = await imageFile.arrayBuffer()
-  const { error: uploadError } = await service.storage
-    .from('surgical-images')
-    .upload(imagePath, imageBuffer, { contentType: imageFile.type })
+  const { data: customTemplates } = await supabase
+    .from('custom_field_templates')
+    .select('field_name, field_type')
+    .eq('user_id', profile.id)
+    .order('display_order')
 
-  if (uploadError) {
-    return NextResponse.json({ error: 'Error al subir imagen' }, { status: 500 })
+  const primaryUpload = await uploadAndSign(service, profile.id, imageFile!)
+  if ('error' in primaryUpload) {
+    return NextResponse.json({ error: primaryUpload.error }, { status: 500 })
   }
 
-  const { data: signedData } = await service.storage
-    .from('surgical-images')
-    .createSignedUrl(imagePath, 300)
-
-  let rotatedImagePath: string | null = null
-  let rotatedSignedUrl: string | null = null
+  let rotatedUpload: Awaited<ReturnType<typeof uploadAndSign>> | null = null
   if (rotatedImageFile) {
-    rotatedImagePath = `${user.id}/${Date.now()}-rotated-${rotatedImageFile.name}`
-    const rotatedBuffer = await rotatedImageFile.arrayBuffer()
-    const { error: rotatedUploadError } = await service.storage
-      .from('surgical-images')
-      .upload(rotatedImagePath, rotatedBuffer, { contentType: rotatedImageFile.type })
-
-    if (!rotatedUploadError) {
-      const { data } = await service.storage
-        .from('surgical-images')
-        .createSignedUrl(rotatedImagePath, 300)
-      rotatedSignedUrl = data?.signedUrl ?? null
+    rotatedUpload = await uploadAndSign(service, profile.id, rotatedImageFile)
+    if ('error' in rotatedUpload) {
+      await service.storage.from('surgical-images').remove([primaryUpload.path])
+      return NextResponse.json({ error: rotatedUpload.error }, { status: 500 })
     }
   }
 
-  // Call OpenRouter
+  const model = userSettings.preferred_model ?? 'anthropic/claude-3.5-sonnet'
   const client = createOpenRouterClient(apiKey)
-  const model = profile.preferred_model ?? 'anthropic/claude-3.5-sonnet'
 
   let rawResponse: string
   try {
@@ -78,68 +120,115 @@ export async function POST(req: NextRequest) {
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: EXTRACTION_PROMPT },
-          { type: 'image_url', image_url: { url: signedData!.signedUrl } },
-          ...(rotatedSignedUrl ? [{ type: 'image_url' as const, image_url: { url: rotatedSignedUrl } }] : []),
+          { type: 'text', text: buildExtractionPrompt(customTemplates ?? []) },
+          { type: 'image_url', image_url: { url: primaryUpload.signedUrl } },
+          ...(rotatedUpload ? [{ type: 'image_url' as const, image_url: { url: rotatedUpload.signedUrl } }] : []),
         ],
       }],
       max_tokens: 1000,
+      ...(MODELS_WITH_JSON_MODE.has(model) ? { response_format: { type: 'json_object' as const } } : {}),
     })
     rawResponse = completion.choices[0]?.message?.content ?? ''
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Error al analizar imagen'
-    return NextResponse.json({ error: msg }, { status: 502 })
+    const message = err instanceof Error ? err.message : 'Error al analizar imagen'
+    await service.storage.from('surgical-images').remove(
+      [primaryUpload.path, rotatedUpload?.path].filter(Boolean) as string[]
+    )
+    return NextResponse.json({ error: message }, { status: 502 })
   } finally {
-    if (rotatedImagePath) {
-      await service.storage.from('surgical-images').remove([rotatedImagePath])
+    if (rotatedUpload) {
+      await service.storage.from('surgical-images').remove([rotatedUpload.path])
     }
   }
 
-  const parsed = parseAIResponse(rawResponse)
-  const fields = normalizeSurgicalFields(parsed.fields)
-  const record_fields = parsed.record_fields.map(field => ({
-    ...field,
-    ai_value: fields[field.field_name],
-    final_value: fields[field.field_name],
-    confidence: fields[field.field_name] !== null ? field.confidence : 0,
-  }))
+  const fields = normalizeSurgicalFields(parseAIResponse(rawResponse).fields)
 
-  // Create record in DB
-  const { data: record, error: recordError } = await supabase
-    .from('surgical_records')
-    .insert({
-      user_id: user.id,
-      image_path: imagePath,
-      ai_raw_response: rawResponse,
-      extracted_data: fields,
-      final_data: fields,
-      status: 'draft',
+  if (!existingRecordId && !confirmDuplicate && fields.paciente && fields.fecha_cirugia) {
+    const { data: existing } = await supabase
+      .from('surgical_records')
+      .select('id')
+      .eq('user_id', profile.id)
+      .eq('final_data->>paciente', fields.paciente)
+      .eq('final_data->>fecha_cirugia', fields.fecha_cirugia)
+      .limit(1)
+
+    if (existing?.length) {
+      await service.storage.from('surgical-images').remove([primaryUpload.path])
+      const response: AnalyzeResponse = {
+        record_id: existing[0].id,
+        extracted_data: fields,
+        warning: 'duplicate',
+        existing_id: existing[0].id,
+      }
+      return NextResponse.json(response)
+    }
+  }
+
+  if (existingRecordId) {
+    const { data: existingRecord, error: existingError } = await selectRecordForMerge(
+      supabase,
+      existingRecordId,
+      profile.id
+    )
+
+    if (existingError || !existingRecord) {
+      await service.storage.from('surgical-images').remove([primaryUpload.path])
+      return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 })
+    }
+
+    const mergedExtracted = mergeSurgicalFieldsFillNulls(
+      normalizeSurgicalFields(existingRecord.extracted_data as SurgicalFields),
+      fields
+    )
+    const mergedFinal = mergeSurgicalFieldsFillNulls(
+      normalizeSurgicalFields(existingRecord.final_data as SurgicalFields),
+      fields
+    )
+    const imagePaths = [...(existingRecord.image_paths ?? []), primaryUpload.path]
+
+    const { error: updateError } = await updateMergedRecord(supabase, existingRecord.id, profile.id, {
+      extracted_data: mergedExtracted,
+      final_data: mergedFinal,
+      image_paths: imagePaths,
+      updated_at: new Date().toISOString(),
     })
-    .select()
-    .single()
+
+    if (updateError) {
+      await service.storage.from('surgical-images').remove([primaryUpload.path])
+      return NextResponse.json({ error: 'Error al guardar registro' }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      record_id: existingRecord.id,
+      extracted_data: mergedExtracted,
+    } satisfies AnalyzeResponse)
+  }
+
+  const { data: record, error: recordError } = await insertSurgicalRecord(supabase, {
+    user_id: profile.id,
+    image_path: primaryUpload.path,
+    image_paths: [primaryUpload.path],
+    ai_raw_response: rawResponse,
+    extracted_data: fields,
+    final_data: fields,
+    status: 'draft',
+  })
 
   if (recordError || !record) {
+    await service.storage.from('surgical-images').remove([primaryUpload.path])
     return NextResponse.json({ error: 'Error al guardar registro' }, { status: 500 })
   }
 
-  // Insert record_fields
-  await supabase.from('record_fields').insert(
-    record_fields.map(f => ({ ...f, record_id: record.id }))
-  )
-
-  // Audit log
-  await supabase.from('audit_log').insert({
-    user_id: user.id,
+  const { error: auditError } = await supabase.from('audit_log').insert({
+    user_id: profile.id,
     record_id: record.id,
     action: 'created',
     diff: fields,
   })
+  if (auditError) console.error('[audit_log insert]', auditError.message)
 
-  const response: AnalyzeResponse = {
+  return NextResponse.json({
     record_id: record.id,
     extracted_data: fields,
-    record_fields: record_fields.map((f, i) => ({ ...f, id: `tmp-${i}`, record_id: record.id })),
-  }
-
-  return NextResponse.json(response)
+  } satisfies AnalyzeResponse)
 }

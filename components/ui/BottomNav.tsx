@@ -2,22 +2,32 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import type { UserRole } from '@/types'
 
 const NAV_ITEMS = [
   { href: '/records', icon: '📋', label: 'Registros' },
   { href: '/search', icon: '🔍', label: 'Buscar' },
-  { href: '/new', icon: '📷', label: 'Nueva', cta: true },
   { href: '/reports', icon: '📊', label: 'Reportes' },
   { href: '/settings', icon: '⚙️', label: 'Config' },
 ]
 
-export default function BottomNav() {
+type NavItem = {
+  href: string
+  icon: string
+  label: string
+  cta?: boolean
+}
+
+export default function BottomNav({ role }: { role: UserRole }) {
   const pathname = usePathname()
+  const items: NavItem[] = role === 'user'
+    ? [...NAV_ITEMS.slice(0, 2), { href: '/new', icon: '📷', label: 'Nueva', cta: true }, ...NAV_ITEMS.slice(2)]
+    : NAV_ITEMS
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
       <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
-        {NAV_ITEMS.map(item => {
+        {items.map(item => {
           const active = pathname.startsWith(item.href)
           return (
             <Link

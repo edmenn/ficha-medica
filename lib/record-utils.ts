@@ -4,6 +4,27 @@ const TIME_RE = /^(\d{1,2}):(\d{2})$/
 const DURATION_TOKEN_RE = /(\d+)\s*(h|min)/gi
 const DATE_RE = /^(\d{1,4})[\/.\-](\d{1,2})[\/.\-](\d{1,4})$/
 
+export const STANDARD_FIELD_ORDER: (keyof SurgicalFields)[] = [
+  'paciente',
+  'fecha_cirugia',
+  'fecha_fin',
+  'hora_inicio',
+  'hora_fin',
+  'duracion',
+  'diagnostico',
+  'procedimiento',
+  'cirujano',
+  'ayudantes',
+  'anestesiologo',
+  'instrumentador',
+  'sanatorio',
+  'observaciones',
+]
+
+export function emptySurgicalFields(): SurgicalFields {
+  return Object.fromEntries(STANDARD_FIELD_ORDER.map(field => [field, null])) as SurgicalFields
+}
+
 function normalizeText(value: unknown): string | null {
   if (typeof value === 'string') {
     const trimmed = value.trim()
@@ -51,7 +72,6 @@ function normalizeDateString(value: string | null): string | null {
     }
   }
 
-  // Interpret 2-digit trailing year as DD-MM-YY, common in these forms.
   const day = first
   const month = second
   let year = third
@@ -157,10 +177,9 @@ function computeDurationFromFields(fields: SurgicalFields): string | null {
 }
 
 export function normalizeSurgicalFields(input: Partial<SurgicalFields>): SurgicalFields {
-  const fields = { ...input } as SurgicalFields
-  const normalized: SurgicalFields = {} as SurgicalFields
+  const normalized = emptySurgicalFields()
 
-  for (const [key, rawValue] of Object.entries(fields)) {
+  for (const [key, rawValue] of Object.entries(input)) {
     normalized[key] = normalizeText(rawValue)
   }
 
@@ -168,10 +187,42 @@ export function normalizeSurgicalFields(input: Partial<SurgicalFields>): Surgica
   normalized.fecha_fin = normalizeDateString(normalized.fecha_fin)
   normalized.hora_inicio = normalizeTimeString(normalized.hora_inicio)
   normalized.hora_fin = normalizeTimeString(normalized.hora_fin)
-  normalized.ayudantes = normalizeText(fields.ayudantes)
+  normalized.ayudantes = normalizeText(input.ayudantes)
   normalized.duracion = computeDurationFromFields(normalized)
 
   return normalized
+}
+
+export function mergeSurgicalFieldsFillNulls(base: SurgicalFields, incoming: SurgicalFields): SurgicalFields {
+  const merged = { ...base }
+
+  for (const [key, value] of Object.entries(incoming)) {
+    if (merged[key] === null && value !== null) {
+      merged[key] = value
+    }
+  }
+
+  return normalizeSurgicalFields(merged)
+}
+
+export function validateSurgicalFields(fields: SurgicalFields): string[] {
+  const errors: string[] = []
+
+  if (fields.fecha_cirugia && fields.fecha_fin) {
+    const start = parseDateValue(fields.fecha_cirugia)
+    const end = parseDateValue(fields.fecha_fin)
+    if (start && end && start > end) {
+      errors.push('La fecha de inicio no puede ser posterior a la fecha de fin')
+    }
+  }
+
+  if (fields.hora_inicio && fields.hora_fin && fields.fecha_cirugia === fields.fecha_fin) {
+    if (fields.hora_inicio > fields.hora_fin) {
+      errors.push('La hora de inicio no puede ser posterior a la hora de fin')
+    }
+  }
+
+  return errors
 }
 
 export function getDurationMinutes(fields: SurgicalFields): number | null {

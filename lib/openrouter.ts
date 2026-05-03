@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import type { CustomFieldTemplate } from '@/types'
 
 export function createOpenRouterClient(apiKey: string) {
   return new OpenAI({
@@ -11,7 +12,15 @@ export function createOpenRouterClient(apiKey: string) {
   })
 }
 
-export const EXTRACTION_PROMPT = `Analizá la imagen de este documento médico/quirúrgico y extraé los datos en formato JSON.
+export const MODELS_WITH_JSON_MODE = new Set([
+  'openai/gpt-4o',
+  'openai/gpt-4o-mini',
+  'anthropic/claude-3.5-sonnet',
+  'anthropic/claude-3-haiku',
+  'google/gemini-pro-1.5',
+])
+
+export const BASE_EXTRACTION_PROMPT = `Analizá la imagen de este documento médico/quirúrgico y extraé los datos en formato JSON.
 
 Devolvé SOLO el JSON con estos campos (usá null para los que no encuentres, nunca inventes):
 {
@@ -48,3 +57,13 @@ Reglas:
 - "fecha_fin" puede aparecer como fecha de finalización, fecha de cierre, fecha final o fecha de terminación
 - "hora_fin" puede aparecer como hora final, hora de salida o hora de terminación
 - "sanatorio" también puede aparecer como hospital o clínica`
+
+export function buildExtractionPrompt(
+  customFields: Pick<CustomFieldTemplate, 'field_name' | 'field_type'>[]
+) {
+  const customSection = customFields.length > 0
+    ? `\nAdemás extraé estos campos adicionales:\n${customFields.map(field => `- "${field.field_name}": ${field.field_type}`).join('\n')}`
+    : ''
+
+  return `${BASE_EXTRACTION_PROMPT}${customSection}`
+}

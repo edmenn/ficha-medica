@@ -7,6 +7,7 @@ const SAMPLE_RECORDS: SurgicalRecord[] = [
     id: '1',
     user_id: 'u1',
     image_path: 'img/1.jpg',
+    image_paths: ['img/1.jpg'],
     ai_raw_response: null,
     extracted_data: {} as never,
     final_data: {

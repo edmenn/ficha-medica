@@ -1,93 +1,43 @@
-import type { SurgicalFields, RecordField } from '@/types'
-import { normalizeSurgicalFields } from './record-utils'
+import type { SurgicalFields } from '@/types'
+import { emptySurgicalFields, normalizeSurgicalFields } from './record-utils'
 
-const STANDARD_FIELDS: (keyof SurgicalFields)[] = [
-  'paciente', 'fecha_cirugia', 'fecha_fin', 'hora_inicio', 'hora_fin', 'duracion',
-  'diagnostico', 'procedimiento', 'cirujano', 'ayudantes',
-  'anestesiologo', 'instrumentador', 'sanatorio', 'observaciones',
-]
-
-const FIELD_ALIASES: Record<keyof SurgicalFields, string[]> = {
-  paciente: ['paciente', 'nombrepaciente', 'pacientenombre'],
-  fecha_cirugia: ['fechacirugia', 'fechainicio', 'fechadeinicio', 'fechaprocedimiento', 'fechaintervencion'],
-  fecha_fin: ['fechafin', 'fechafinalizacion', 'fechafinalizacioncirugia', 'fechafinal', 'fechaterminacion', 'fechacierre'],
-  hora_inicio: ['horainicio', 'horadeinicio', 'horainicial', 'horadeentrada', 'horainiciocirugia'],
-  hora_fin: ['horafin', 'horadefin', 'horafinalizacion', 'horaterminacion', 'horasalida', 'horacierrecirugia'],
-  duracion: ['duracion', 'tiempoquirurgico', 'tiempocirugia', 'duracioncirugia'],
-  diagnostico: ['diagnostico', 'diagnosticooperatorio', 'diagnosticopreoperatorio', 'dx'],
-  procedimiento: ['procedimiento', 'cirugia', 'intervencion', 'operacion', 'tecnicaquirurgica'],
-  cirujano: ['cirujano', 'cirujana', 'medicocirujano'],
-  ayudantes: ['ayudantes', 'ayudante', 'asistentes', 'asistente', 'primerayudante', 'segundoayudante'],
-  anestesiologo: ['anestesiologo', 'anestesiologa', 'anestesista', 'medicoanestesiologo'],
-  instrumentador: ['instrumentador', 'instrumentadora', 'instrumentista', 'instrumentalista', 'arsenalera'],
-  sanatorio: ['sanatorio', 'hospital', 'clinica', 'centroquirurgico', 'centromedico'],
-  observaciones: ['observaciones', 'obs', 'notas', 'comentarios'],
+const FIELD_ALIASES: Record<string, keyof SurgicalFields> = {
+  fecha_inicio: 'fecha_cirugia',
+  fecha_finalizacion: 'fecha_fin',
+  hora_de_inicio: 'hora_inicio',
+  hora_salida: 'hora_fin',
+  anestesista: 'anestesiologo',
+  instrumentadora: 'instrumentador',
+  hospital: 'sanatorio',
 }
 
-function normalizeKey(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-}
-
-function resolveFieldValue(parsed: Record<string, unknown>, key: keyof SurgicalFields): unknown {
-  const aliases = FIELD_ALIASES[key]
-  for (const [rawKey, rawValue] of Object.entries(parsed)) {
-    const normalized = normalizeKey(rawKey)
-    if (aliases.includes(normalized)) {
-      return rawValue
-    }
-  }
-  return undefined
-}
-
-function extractJSON(raw: string): unknown {
-  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
-  const jsonStr = fenceMatch ? fenceMatch[1].trim() : raw.trim()
-  return JSON.parse(jsonStr)
-}
-
-export function parseAIResponse(raw: string): {
-  fields: SurgicalFields
-  record_fields: Omit<RecordField, 'id' | 'record_id'>[]
-} {
-  const empty: SurgicalFields = Object.fromEntries(
-    STANDARD_FIELDS.map(k => [k, null])
-  ) as SurgicalFields
-
-  let parsed: Record<string, unknown>
+function extractJSON(raw: string): Record<string, unknown> {
   try {
-    parsed = extractJSON(raw) as Record<string, unknown>
+    return JSON.parse(raw) as Record<string, unknown>
   } catch {
+    const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+    return JSON.parse(fence ? fence[1].trim() : raw.trim()) as Record<string, unknown>
+  }
+}
+
+function remapFieldAliases(rawFields: Record<string, unknown>): Partial<SurgicalFields> {
+  const remapped: Partial<SurgicalFields> = {}
+
+  for (const [rawKey, value] of Object.entries(rawFields)) {
+    const key = FIELD_ALIASES[rawKey] ?? rawKey
+    remapped[key] = value as SurgicalFields[keyof SurgicalFields]
+  }
+
+  return remapped
+}
+
+export function parseAIResponse(raw: string): { fields: SurgicalFields } {
+  try {
+    const extracted = extractJSON(raw)
     return {
-      fields: empty,
-      record_fields: STANDARD_FIELDS.map(field_name => ({
-        field_name: field_name as string,
-        ai_value: null,
-        final_value: null,
-        confidence: 0,
-      })),
+      fields: normalizeSurgicalFields(remapFieldAliases(extracted)),
     }
+  } catch {
+    return { fields: emptySurgicalFields() }
   }
-
-  const rawFields: SurgicalFields = { ...empty }
-  for (const key of STANDARD_FIELDS) {
-    const val = resolveFieldValue(parsed, key)
-    rawFields[key] = Array.isArray(val)
-      ? val.map(item => (typeof item === 'string' ? item.trim() : '')).filter(Boolean).join(', ') || null
-      : (typeof val === 'string' && val.trim() !== '') ? val.trim() : null
-  }
-
-  const fields = normalizeSurgicalFields(rawFields)
-
-  const record_fields = STANDARD_FIELDS.map(field_name => ({
-    field_name: field_name as string,
-    ai_value: fields[field_name],
-    final_value: fields[field_name],
-    confidence: fields[field_name] !== null ? 1 : 0,
-  }))
-
-  return { fields, record_fields }
 }

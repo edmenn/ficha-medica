@@ -1,7 +1,6 @@
-'use client'
-
-import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { getDurationMinutes } from '@/lib/record-utils'
+import { createClient } from '@/lib/supabase/server'
 import type { SurgicalRecord } from '@/types'
 
 function getDefaultRange() {
@@ -17,122 +16,130 @@ function getDefaultRange() {
 function computeStats(records: SurgicalRecord[]) {
   const total = records.length
   const durations = records
-    .map(r => getDurationMinutes(r.final_data))
-    .filter((n): n is number => typeof n === 'number' && n > 0)
+    .map(record => getDurationMinutes(record.final_data))
+    .filter((value): value is number => typeof value === 'number' && value > 0)
   const avgMin = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0
-  const bySanatorio = records.reduce<Record<string, number>>((acc, r) => {
-    const s = r.final_data.sanatorio ?? 'Sin especificar'
-    acc[s] = (acc[s] ?? 0) + 1
+  const bySanatorio = records.reduce<Record<string, number>>((acc, record) => {
+    const sanatorio = record.final_data.sanatorio ?? 'Sin especificar'
+    acc[sanatorio] = (acc[sanatorio] ?? 0) + 1
     return acc
   }, {})
+
   return { total, avgMin, bySanatorio }
 }
 
-export default function ReportsPage() {
+function buildReportQuery(from: string, to: string, sanatorio: string) {
+  const params = new URLSearchParams({ from, to, status: 'final' })
+  if (sanatorio.trim()) {
+    params.set('sanatorio', sanatorio.trim())
+  }
+  return params.toString()
+}
+
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams?: { from?: string; to?: string; sanatorio?: string }
+}) {
   const defaults = getDefaultRange()
-  const [from, setFrom] = useState(defaults.from)
-  const [to, setTo] = useState(defaults.to)
-  const [sanatorio, setSanatorio] = useState('')
-  const [sanatorioOptions, setSanatorioOptions] = useState<string[]>([])
-  const [records, setRecords] = useState<SurgicalRecord[]>([])
-  const [loading, setLoading] = useState(false)
-  const [searched, setSearched] = useState(false)
+  const from = searchParams?.from ?? defaults.from
+  const to = searchParams?.to ?? defaults.to
+  const sanatorio = searchParams?.sanatorio ?? ''
+  const searched = Boolean(searchParams?.from || searchParams?.to || searchParams?.sanatorio)
 
-  useEffect(() => {
-    fetch('/api/search/filters')
-      .then(r => r.json())
-      .then(data => setSanatorioOptions(data.sanatorios ?? []))
-  }, [])
+  const supabase = await createClient()
+  const [{ data }, { data: filterRows }] = await Promise.all([
+    supabase
+      .from('surgical_records')
+      .select('*')
+      .eq('status', 'final')
+      .gte('final_data->>fecha_cirugia', from)
+      .lte('final_data->>fecha_cirugia', to)
+      .order('final_data->>fecha_cirugia', { ascending: false })
+      .order('created_at', { ascending: false }),
+    supabase.from('surgical_records').select('final_data').order('final_data->>cirujano').limit(500),
+  ])
 
-  function buildQueryString() {
-    const params = new URLSearchParams({
-      from,
-      to,
-      status: 'final',
-    })
+  const sanatorioOptions = Array.from(new Set(
+    (filterRows ?? [])
+      .map(row => row.final_data?.sanatorio?.trim())
+      .filter((value): value is string => Boolean(value))
+  )).sort((a, b) => a.localeCompare(b, 'es'))
 
-    if (sanatorio.trim()) {
-      params.set('sanatorio', sanatorio.trim())
-    }
-
-    return params.toString()
-  }
-
-  async function loadRecords() {
-    setLoading(true)
-    const res = await fetch(`/api/search?${buildQueryString()}`)
-    const data = await res.json()
-    setRecords(data.records ?? [])
-    setLoading(false)
-    setSearched(true)
-  }
-
-  function exportFile(format: 'xlsx' | 'pdf') {
-    window.open(`/api/export?format=${format}&${buildQueryString()}`, '_blank')
-  }
+  const records = ((data ?? []) as SurgicalRecord[]).filter(record => {
+    if (!sanatorio.trim()) return true
+    return record.final_data.sanatorio?.trim() === sanatorio.trim()
+  })
 
   const stats = computeStats(records)
+  const queryString = buildReportQuery(from, to, sanatorio)
 
   return (
     <div>
-      <h1 className="text-xl font-bold mb-4">Reportes</h1>
+      <h1 className="mb-4 text-xl font-bold">Reportes</h1>
 
-      <div className="flex gap-2 mb-3">
-        <div className="flex-1">
-          <label className="text-xs text-slate-500 mb-1 block">Desde</label>
-          <input type="date" value={from} onChange={e => setFrom(e.target.value)}
-            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 text-sm focus:outline-none focus:border-blue-500" />
+      <form className="mb-4">
+        <div className="mb-3 flex gap-2">
+          <div className="flex-1">
+            <label className="mb-1 block text-xs text-slate-500">Desde</label>
+            <input
+              type="date"
+              name="from"
+              defaultValue={from}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="mb-1 block text-xs text-slate-500">Hasta</label>
+            <input
+              type="date"
+              name="to"
+              defaultValue={to}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+            />
+          </div>
         </div>
-        <div className="flex-1">
-          <label className="text-xs text-slate-500 mb-1 block">Hasta</label>
-          <input type="date" value={to} onChange={e => setTo(e.target.value)}
-            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 text-sm focus:outline-none focus:border-blue-500" />
+        <div className="mb-4">
+          <label className="mb-1 block text-xs text-slate-500">Sanatorio</label>
+          <select
+            name="sanatorio"
+            defaultValue={sanatorio}
+            className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">Todos</option>
+            {sanatorioOptions.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
         </div>
-      </div>
-      <div className="mb-4">
-        <label className="text-xs text-slate-500 mb-1 block">Sanatorio</label>
-        <select
-          value={sanatorio}
-          onChange={e => setSanatorio(e.target.value)}
-          className="w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
-        >
-          <option value="">Todos</option>
-          {sanatorioOptions.map(option => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
-      </div>
 
-      <button
-        onClick={loadRecords}
-        disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium py-3 rounded-xl mb-4"
-      >
-        {loading ? 'Cargando...' : 'Generar reporte'}
-      </button>
+        <button type="submit" className="mb-4 w-full rounded-xl bg-blue-600 py-3 font-medium text-white hover:bg-blue-700">
+          Generar reporte
+        </button>
+      </form>
 
       {searched && (
         <>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-slate-800 rounded-xl p-4 text-center">
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-slate-800 p-4 text-center">
               <p className="text-3xl font-bold text-blue-400">{stats.total}</p>
-              <p className="text-xs text-slate-400 mt-1">cirugías</p>
+              <p className="mt-1 text-xs text-slate-400">cirugías</p>
             </div>
-            <div className="bg-slate-800 rounded-xl p-4 text-center">
+            <div className="rounded-xl bg-slate-800 p-4 text-center">
               <p className="text-3xl font-bold text-green-400">
                 {stats.avgMin > 0 ? `${Math.floor(stats.avgMin / 60)}h ${stats.avgMin % 60}m` : '—'}
               </p>
-              <p className="text-xs text-slate-400 mt-1">duración promedio</p>
+              <p className="mt-1 text-xs text-slate-400">duración promedio</p>
             </div>
           </div>
 
           {Object.keys(stats.bySanatorio).length > 0 && (
-            <div className="bg-slate-800 rounded-xl p-4 mb-4">
-              <h3 className="text-sm font-semibold text-slate-300 mb-3">Por sanatorio</h3>
+            <div className="mb-4 rounded-xl bg-slate-800 p-4">
+              <h3 className="mb-3 text-sm font-semibold text-slate-300">Por sanatorio</h3>
               {Object.entries(stats.bySanatorio)
                 .sort((a, b) => b[1] - a[1])
                 .map(([name, count]) => (
-                  <div key={name} className="flex justify-between text-sm mb-2">
+                  <div key={name} className="mb-2 flex justify-between text-sm">
                     <span className="text-slate-300">{name}</span>
                     <span className="text-slate-400">{count}</span>
                   </div>
@@ -142,18 +149,20 @@ export default function ReportsPage() {
 
           {records.length > 0 && (
             <div className="flex gap-3">
-              <button
-                onClick={() => exportFile('xlsx')}
-                className="flex-1 bg-green-700 hover:bg-green-600 text-white py-3 rounded-xl text-sm font-medium"
+              <Link
+                href={`/api/export?format=xlsx&${queryString}`}
+                target="_blank"
+                className="flex-1 rounded-xl bg-green-700 py-3 text-center text-sm font-medium text-white hover:bg-green-600"
               >
                 Exportar Excel
-              </button>
-              <button
-                onClick={() => exportFile('pdf')}
-                className="flex-1 bg-red-800 hover:bg-red-700 text-white py-3 rounded-xl text-sm font-medium"
+              </Link>
+              <Link
+                href={`/api/export?format=pdf&${queryString}`}
+                target="_blank"
+                className="flex-1 rounded-xl bg-red-800 py-3 text-center text-sm font-medium text-white hover:bg-red-700"
               >
                 Exportar PDF
-              </button>
+              </Link>
             </div>
           )}
         </>

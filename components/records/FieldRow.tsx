@@ -1,5 +1,7 @@
 'use client'
 
+import Combobox from '@/components/ui/Combobox'
+
 const FIELD_LABELS: Record<string, string> = {
   paciente: 'Paciente',
   fecha_cirugia: 'Fecha inicio',
@@ -17,43 +19,50 @@ const FIELD_LABELS: Record<string, string> = {
   observaciones: 'Observaciones',
 }
 
+const AUTOCOMPLETE_FIELDS = new Set([
+  'cirujano',
+  'anestesiologo',
+  'sanatorio',
+  'procedimiento',
+  'instrumentador',
+])
+
 interface Props {
   fieldName: string
   value: string
   aiValue: string | null
-  confidence: number
   onChange: (value: string) => void
 }
 
-export default function FieldRow({ fieldName, value, aiValue, confidence, onChange }: Props) {
+export default function FieldRow({ fieldName, value, aiValue, onChange }: Props) {
   const label = FIELD_LABELS[fieldName] ?? fieldName
-  const isLowConfidence = confidence < 0.5
-  const hasAIValue = aiValue !== null && aiValue !== ''
-  const wasModified = hasAIValue && value !== aiValue
+  const wasExtracted = aiValue !== null
+  const wasModified = value !== (aiValue ?? '')
+  const sharedClassName = 'w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm'
 
   return (
-    <div className="mb-4">
-      <div className="flex items-center justify-between mb-1">
-        <label className="text-sm text-slate-400">{label}</label>
-        <span className={`text-xs px-2 py-0.5 rounded-full ${
-          isLowConfidence
-            ? 'bg-amber-900/50 text-amber-300'
-            : wasModified
-              ? 'bg-blue-900/50 text-blue-300'
-              : 'bg-slate-800 text-slate-500'
-        }`}>
-          {isLowConfidence ? '⚠️ revisar' : wasModified ? '✏️ editado' : ''}
-        </span>
-      </div>
-      <input
-        type="text"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="—"
-        className={`w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border ${
-          isLowConfidence ? 'border-amber-600' : 'border-slate-700'
-        } focus:outline-none focus:border-blue-500 text-sm`}
-      />
+    <div className={`mb-4 border-l-2 ${wasExtracted ? 'border-emerald-600' : 'border-slate-700'} pl-3`}>
+      <label className="mb-1 flex items-center gap-2 text-sm text-slate-400">
+        <span>{label}</span>
+        {wasExtracted && <span className="text-xs text-emerald-500">IA</span>}
+        {wasModified && <span className="text-xs text-amber-500">editado</span>}
+      </label>
+      {AUTOCOMPLETE_FIELDS.has(fieldName) ? (
+        <Combobox
+          field={fieldName}
+          value={value}
+          onChange={onChange}
+          className={sharedClassName}
+        />
+      ) : (
+        <input
+          type="text"
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          placeholder="—"
+          className={sharedClassName}
+        />
+      )}
     </div>
   )
 }
