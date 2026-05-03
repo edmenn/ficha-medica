@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -19,16 +19,8 @@ export async function GET(req: NextRequest) {
     .select('*')
     .order('final_data->>fecha_cirugia', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(50)
+    .limit(200)
 
-  if (q.trim()) {
-    query = query.or(
-      `final_data->>'paciente'.ilike.%${q}%,` +
-      `final_data->>'cirujano'.ilike.%${q}%,` +
-      `final_data->>'procedimiento'.ilike.%${q}%,` +
-      `final_data->>'diagnostico'.ilike.%${q}%`
-    )
-  }
   if (from) query = query.gte('final_data->>fecha_cirugia', from)
   if (to) query = query.lte('final_data->>fecha_cirugia', to)
   if (cirujano) query = query.ilike("final_data->>'cirujano'", `%${cirujano}%`)
@@ -37,5 +29,45 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ records: data })
+
+  const terms = q
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+
+  const filtered = (data ?? []).filter(record => {
+    if (terms.length === 0) return true
+
+    const haystack = [
+      record.final_data?.paciente,
+      record.final_data?.cirujano,
+      record.final_data?.procedimiento,
+      record.final_data?.diagnostico,
+      record.final_data?.sanatorio,
+      record.final_data?.ayudantes,
+      record.final_data?.anestesiologo,
+      record.final_data?.instrumentador,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+
+    return terms.every(term => haystack.includes(term))
+  })
+
+  const service = await createServiceClient()
+  const records = await Promise.all(filtered.slice(0, 50).map(async record => {
+    if (!record.image_path || record.image_path === 'manual-entry') {
+      return { ...record, image_url: null }
+    }
+
+    const { data: signed } = await service.storage
+      .from('surgical-images')
+      .createSignedUrl(record.image_path, 3600)
+
+    return { ...record, image_url: signed?.signedUrl ?? null }
+  }))
+
+  return NextResponse.json({ records })
 }
