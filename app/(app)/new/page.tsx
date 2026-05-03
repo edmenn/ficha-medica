@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import ImageCapture from '@/components/capture/ImageCapture'
 import RecordForm from '@/components/records/RecordForm'
-import { prepareImageForUpload } from '@/lib/imageUtils'
+import { prepareImageVariantsForAI } from '@/lib/imageUtils'
 import type { AnalyzeResponse, CustomFieldTemplate, SurgicalFields } from '@/types'
 
 type Step = 'capture' | 'processing' | 'review'
@@ -32,8 +32,11 @@ export default function NewRecordPage() {
     setPreview(URL.createObjectURL(file))
 
     let prepared: File
+    let rotated: File | null
     try {
-      prepared = await prepareImageForUpload(file)
+      const variants = await prepareImageVariantsForAI(file)
+      prepared = variants.primary
+      rotated = variants.rotated
     } catch {
       setError('Error al procesar la imagen')
       setStep('capture')
@@ -42,6 +45,9 @@ export default function NewRecordPage() {
 
     const form = new FormData()
     form.append('image', prepared)
+    if (rotated) {
+      form.append('image_rotated', rotated)
+    }
 
     const res = await fetch('/api/analyze', { method: 'POST', body: form })
     const data = await res.json()

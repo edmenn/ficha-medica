@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import RecordForm from '@/components/records/RecordForm'
+import { prepareImageVariantsForAI } from '@/lib/imageUtils'
 import type { AnalyzeResponse, CustomFieldTemplate, RecordField, SurgicalRecord, SurgicalFields } from '@/types'
 
 export default function RecordDetailPage() {
@@ -56,9 +57,29 @@ export default function RecordDetailPage() {
   }
 
   async function handleReloadAI() {
+    if (!record) return
     setReloadingAI(true)
     setError(null)
-    const res = await fetch(`/api/records/${id}/reanalyze`, { method: 'POST' })
+    const form = new FormData()
+
+    if (record.image_url) {
+      try {
+        const imageRes = await fetch(record.image_url)
+        const blob = await imageRes.blob()
+        const file = new File([blob], `${record.id}.jpg`, { type: blob.type || 'image/jpeg' })
+        const variants = await prepareImageVariantsForAI(file)
+        form.append('image', variants.primary)
+        if (variants.rotated) {
+          form.append('image_rotated', variants.rotated)
+        }
+      } catch {
+        setError('No se pudo preparar la imagen para releer con IA')
+        setReloadingAI(false)
+        return
+      }
+    }
+
+    const res = await fetch(`/api/records/${id}/reanalyze`, { method: 'POST', body: form })
     const data = await res.json() as AnalyzeResponse & { error?: string }
 
     if (!res.ok) {

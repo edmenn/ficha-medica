@@ -21,6 +21,18 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Configure tu API key de OpenRouter en Configuración' }, { status: 422 })
   }
 
+  let apiKey: string
+  try {
+    apiKey = decrypt(profile.openrouter_key)
+  } catch {
+    return NextResponse.json({ error: 'API key inválida, reconfigurala en Configuración' }, { status: 422 })
+  }
+
+  const service = await createServiceClient()
+  const formData = await _req.formData()
+  const imageFile = formData.get('image') as File | null
+  const rotatedImageFile = formData.get('image_rotated') as File | null
+
   const { data: record, error: recordError } = await supabase
     .from('surgical_records')
     .select('id, image_path')
@@ -31,24 +43,55 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 })
   }
 
-  if (!record.image_path || record.image_path === 'manual-entry') {
-    return NextResponse.json({ error: 'Este registro no tiene imagen para releer' }, { status: 400 })
+  let primarySignedUrl: string | null = null
+  let tempPrimaryPath: string | null = null
+  let tempRotatedPath: string | null = null
+  let rotatedSignedUrl: string | null = null
+
+  if (imageFile) {
+    tempPrimaryPath = `${user.id}/${Date.now()}-reanalyze-${imageFile.name}`
+    const buffer = await imageFile.arrayBuffer()
+    const { error: uploadError } = await service.storage
+      .from('surgical-images')
+      .upload(tempPrimaryPath, buffer, { contentType: imageFile.type })
+
+    if (uploadError) {
+      return NextResponse.json({ error: 'No se pudo preparar la imagen para releer' }, { status: 500 })
+    }
+
+    const { data } = await service.storage
+      .from('surgical-images')
+      .createSignedUrl(tempPrimaryPath, 300)
+    primarySignedUrl = data?.signedUrl ?? null
+  } else {
+    if (!record.image_path || record.image_path === 'manual-entry') {
+      return NextResponse.json({ error: 'Este registro no tiene imagen para releer' }, { status: 400 })
+    }
+
+    const { data: signedData, error: signedError } = await service.storage
+      .from('surgical-images')
+      .createSignedUrl(record.image_path, 300)
+
+    if (signedError || !signedData?.signedUrl) {
+      return NextResponse.json({ error: 'No se pudo acceder a la imagen guardada' }, { status: 500 })
+    }
+
+    primarySignedUrl = signedData.signedUrl
   }
 
-  let apiKey: string
-  try {
-    apiKey = decrypt(profile.openrouter_key)
-  } catch {
-    return NextResponse.json({ error: 'API key inválida, reconfigurala en Configuración' }, { status: 422 })
-  }
+  if (rotatedImageFile) {
+    tempRotatedPath = `${user.id}/${Date.now()}-reanalyze-rotated-${rotatedImageFile.name}`
+    const buffer = await rotatedImageFile.arrayBuffer()
+    const { error: uploadError } = await service.storage
+      .from('surgical-images')
+      .upload(tempRotatedPath, buffer, { contentType: rotatedImageFile.type })
 
-  const service = await createServiceClient()
-  const { data: signedData, error: signedError } = await service.storage
-    .from('surgical-images')
-    .createSignedUrl(record.image_path, 300)
-
-  if (signedError || !signedData?.signedUrl) {
-    return NextResponse.json({ error: 'No se pudo acceder a la imagen guardada' }, { status: 500 })
+    if (!uploadError) {
+      const { data } = await service.storage
+        .from('surgical-images')
+        .createSignedUrl(tempRotatedPath, 300)
+      rotatedSignedUrl = data?.signedUrl ?? null
+    }
   }
 
   const client = createOpenRouterClient(apiKey)
@@ -62,7 +105,8 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
         role: 'user',
         content: [
           { type: 'text', text: EXTRACTION_PROMPT },
-          { type: 'image_url', image_url: { url: signedData.signedUrl } },
+          { type: 'image_url', image_url: { url: primarySignedUrl! } },
+          ...(rotatedSignedUrl ? [{ type: 'image_url' as const, image_url: { url: rotatedSignedUrl } }] : []),
         ],
       }],
       max_tokens: 1000,
@@ -71,6 +115,11 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Error al releer imagen'
     return NextResponse.json({ error: msg }, { status: 502 })
+  } finally {
+    const tempPaths = [tempPrimaryPath, tempRotatedPath].filter(Boolean) as string[]
+    if (tempPaths.length > 0) {
+      await service.storage.from('surgical-images').remove(tempPaths)
+    }
   }
 
   const parsed = parseAIResponse(rawResponse)

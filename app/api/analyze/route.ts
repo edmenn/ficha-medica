@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData()
   const imageFile = formData.get('image') as File | null
+  const rotatedImageFile = formData.get('image_rotated') as File | null
   if (!imageFile) return NextResponse.json({ error: 'No image provided' }, { status: 400 })
 
   // Get user's OpenRouter key
@@ -45,10 +46,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Error al subir imagen' }, { status: 500 })
   }
 
-  // Get signed URL for OpenRouter (expires in 5 minutes)
   const { data: signedData } = await service.storage
     .from('surgical-images')
     .createSignedUrl(imagePath, 300)
+
+  let rotatedImagePath: string | null = null
+  let rotatedSignedUrl: string | null = null
+  if (rotatedImageFile) {
+    rotatedImagePath = `${user.id}/${Date.now()}-rotated-${rotatedImageFile.name}`
+    const rotatedBuffer = await rotatedImageFile.arrayBuffer()
+    const { error: rotatedUploadError } = await service.storage
+      .from('surgical-images')
+      .upload(rotatedImagePath, rotatedBuffer, { contentType: rotatedImageFile.type })
+
+    if (!rotatedUploadError) {
+      const { data } = await service.storage
+        .from('surgical-images')
+        .createSignedUrl(rotatedImagePath, 300)
+      rotatedSignedUrl = data?.signedUrl ?? null
+    }
+  }
 
   // Call OpenRouter
   const client = createOpenRouterClient(apiKey)
@@ -63,6 +80,7 @@ export async function POST(req: NextRequest) {
         content: [
           { type: 'text', text: EXTRACTION_PROMPT },
           { type: 'image_url', image_url: { url: signedData!.signedUrl } },
+          ...(rotatedSignedUrl ? [{ type: 'image_url' as const, image_url: { url: rotatedSignedUrl } }] : []),
         ],
       }],
       max_tokens: 1000,
@@ -71,6 +89,10 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Error al analizar imagen'
     return NextResponse.json({ error: msg }, { status: 502 })
+  } finally {
+    if (rotatedImagePath) {
+      await service.storage.from('surgical-images').remove([rotatedImagePath])
+    }
   }
 
   const parsed = parseAIResponse(rawResponse)
