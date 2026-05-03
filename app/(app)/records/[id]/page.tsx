@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import RecordForm from '@/components/records/RecordForm'
 import type { CustomFieldTemplate, SurgicalRecord, SurgicalFields } from '@/types'
@@ -47,6 +48,17 @@ export default function RecordDetailPage() {
         <button onClick={() => router.back()} className="text-slate-400">←</button>
         <h1 className="text-xl font-bold">Detalle</h1>
       </div>
+      {record.image_url && (
+        <div className="relative w-full h-64 mb-6 overflow-hidden rounded-xl bg-slate-900 border border-slate-700">
+          <Image
+            src={record.image_url}
+            alt={fields.paciente ?? 'Documento'}
+            fill
+            unoptimized
+            className="object-contain"
+          />
+        </div>
+      )}
       <RecordForm
         fields={fields}
         recordFields={record.record_fields ?? []}

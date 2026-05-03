@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { normalizeSurgicalFields } from '@/lib/record-utils'
 import type { SurgicalFields, RecordStatus } from '@/types'
 
@@ -15,7 +15,16 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 404 })
-  return NextResponse.json(data)
+  if (!data.image_path || data.image_path === 'manual-entry') {
+    return NextResponse.json({ ...data, image_url: null })
+  }
+
+  const service = await createServiceClient()
+  const { data: signed } = await service.storage
+    .from('surgical-images')
+    .createSignedUrl(data.image_path, 3600)
+
+  return NextResponse.json({ ...data, image_url: signed?.signedUrl ?? null })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {

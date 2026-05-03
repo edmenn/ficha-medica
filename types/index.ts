@@ -43,6 +43,7 @@ export interface SurgicalRecord {
   id: string
   user_id: string
   image_path: string
+  image_url?: string | null
   ai_raw_response: unknown
   extracted_data: SurgicalFields
   final_data: SurgicalFields

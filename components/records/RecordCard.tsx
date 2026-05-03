@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import type { SurgicalRecord } from '@/types'
 
 interface Props { record: SurgicalRecord }
@@ -12,12 +13,27 @@ export default function RecordCard({ record }: Props) {
   return (
     <Link href={`/records/${record.id}`}>
       <div className="bg-slate-800 rounded-xl p-4 mb-3 active:opacity-70">
-        <div className="flex justify-between items-start mb-1">
-          <span className="font-semibold text-white">{f.paciente ?? 'Sin nombre'}</span>
-          <span className="text-xs text-slate-400">{date}</span>
+        <div className="flex gap-3">
+          {record.image_url && (
+            <div className="relative w-20 h-20 shrink-0 overflow-hidden rounded-lg bg-slate-900 border border-slate-700">
+              <Image
+                src={record.image_url}
+                alt={f.paciente ?? 'Documento'}
+                fill
+                unoptimized
+                className="object-cover"
+              />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex justify-between items-start mb-1 gap-3">
+              <span className="font-semibold text-white truncate">{f.paciente ?? 'Sin nombre'}</span>
+              <span className="text-xs text-slate-400 shrink-0">{date}</span>
+            </div>
+            <p className="text-sm text-slate-400 truncate">{f.procedimiento ?? f.diagnostico ?? '—'}</p>
+            {f.sanatorio && <p className="text-xs text-slate-500 mt-1 truncate">{f.sanatorio}</p>}
+          </div>
         </div>
-        <p className="text-sm text-slate-400 truncate">{f.procedimiento ?? f.diagnostico ?? '—'}</p>
-        {f.sanatorio && <p className="text-xs text-slate-500 mt-1">{f.sanatorio}</p>}
       </div>
     </Link>
   )
