@@ -38,4 +38,10 @@ Reglas:
 - Fechas en formato YYYY-MM-DD si es posible
 - Horas en formato HH:MM
 - Si hay múltiples ayudantes, devolvelos todos en un solo string separados por coma
-- Si el documento lista ayudantes en varias líneas, incluí todas las líneas`
+- Si el documento lista ayudantes en varias líneas, incluí todas las líneas
+- Revisá todo el documento antes de responder; no omitas campos visibles aunque estén en tablas o columnas
+- "instrumentador" puede aparecer como "instrumentadora", "instrumentista", "instrumentalista" o "arsenalera"
+- "anestesiologo" puede aparecer como "anestesista" o "anestesiólogo/a"
+- "fecha_fin" puede aparecer como fecha de finalización, fecha de cierre, fecha final o fecha de terminación
+- "hora_fin" puede aparecer como hora final, hora de salida o hora de terminación
+- "sanatorio" también puede aparecer como hospital o clínica`

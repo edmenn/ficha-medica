@@ -91,4 +91,6 @@ export interface ExportQuery {
   format: 'xlsx' | 'pdf'
   from: string   // ISO date
   to: string     // ISO date
+  sanatorio?: string
+  status?: RecordStatus
 }

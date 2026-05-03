@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
   const to = searchParams.get('to')
   const cirujano = searchParams.get('cirujano')
   const sanatorio = searchParams.get('sanatorio')
+  const status = searchParams.get('status')
 
   let query = supabase
     .from('surgical_records')
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
   if (to) query = query.lte('final_data->>fecha_cirugia', to)
   if (cirujano) query = query.ilike("final_data->>'cirujano'", `%${cirujano}%`)
   if (sanatorio) query = query.ilike("final_data->>'sanatorio'", `%${sanatorio}%`)
+  if (status) query = query.eq('status', status)
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

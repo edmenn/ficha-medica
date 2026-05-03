@@ -13,12 +13,13 @@ export async function GET(req: NextRequest) {
   const format = searchParams.get('format') as ExportQuery['format']
   const from = searchParams.get('from')
   const to = searchParams.get('to')
+  const sanatorio = searchParams.get('sanatorio')
 
   if (!format || !from || !to) {
     return NextResponse.json({ error: 'format, from, and to are required' }, { status: 400 })
   }
 
-  const { data: records, error } = await supabase
+  let query = supabase
     .from('surgical_records')
     .select('*')
     .gte('final_data->>fecha_cirugia', from)
@@ -27,13 +28,19 @@ export async function GET(req: NextRequest) {
     .order('final_data->>fecha_cirugia')
     .order('created_at')
 
+  if (sanatorio) {
+    query = query.ilike("final_data->>'sanatorio'", `%${sanatorio}%`)
+  }
+
+  const { data: records, error } = await query
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   await supabase.from('audit_log').insert({
     user_id: user.id,
     record_id: null,
     action: 'exported',
-    diff: { format, from, to, count: records.length },
+    diff: { format, from, to, sanatorio, count: records.length },
   })
 
   if (format === 'xlsx') {

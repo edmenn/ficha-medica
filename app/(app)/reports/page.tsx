@@ -32,13 +32,28 @@ export default function ReportsPage() {
   const defaults = getDefaultRange()
   const [from, setFrom] = useState(defaults.from)
   const [to, setTo] = useState(defaults.to)
+  const [sanatorio, setSanatorio] = useState('')
   const [records, setRecords] = useState<SurgicalRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
 
+  function buildQueryString() {
+    const params = new URLSearchParams({
+      from,
+      to,
+      status: 'final',
+    })
+
+    if (sanatorio.trim()) {
+      params.set('sanatorio', sanatorio.trim())
+    }
+
+    return params.toString()
+  }
+
   async function loadRecords() {
     setLoading(true)
-    const res = await fetch(`/api/search?from=${from}&to=${to}`)
+    const res = await fetch(`/api/search?${buildQueryString()}`)
     const data = await res.json()
     setRecords(data.records ?? [])
     setLoading(false)
@@ -46,7 +61,7 @@ export default function ReportsPage() {
   }
 
   function exportFile(format: 'xlsx' | 'pdf') {
-    window.open(`/api/export?format=${format}&from=${from}&to=${to}`, '_blank')
+    window.open(`/api/export?format=${format}&${buildQueryString()}`, '_blank')
   }
 
   const stats = computeStats(records)
@@ -55,7 +70,7 @@ export default function ReportsPage() {
     <div>
       <h1 className="text-xl font-bold mb-4">Reportes</h1>
 
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-3">
         <div className="flex-1">
           <label className="text-xs text-slate-500 mb-1 block">Desde</label>
           <input type="date" value={from} onChange={e => setFrom(e.target.value)}
@@ -66,6 +81,16 @@ export default function ReportsPage() {
           <input type="date" value={to} onChange={e => setTo(e.target.value)}
             className="w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 text-sm focus:outline-none focus:border-blue-500" />
         </div>
+      </div>
+      <div className="mb-4">
+        <label className="text-xs text-slate-500 mb-1 block">Sanatorio</label>
+        <input
+          type="text"
+          value={sanatorio}
+          onChange={e => setSanatorio(e.target.value)}
+          placeholder="Todos los sanatorios"
+          className="w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 text-sm focus:outline-none focus:border-blue-500"
+        />
       </div>
 
       <button
