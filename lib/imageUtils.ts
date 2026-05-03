@@ -74,13 +74,9 @@ export async function compressImage(file: File, maxBytes = MAX_SIZE_BYTES): Prom
   return canvasToBlob(canvas, maxBytes)
 }
 
-export async function createRotatedVariant(file: File): Promise<File | null> {
+export async function isLikelyRotatedDocument(file: File): Promise<boolean> {
   const img = await loadImage(file)
-  if (img.width <= img.height) return null
-
-  const canvas = drawToCanvas(img, true)
-  const blob = await canvasToBlob(canvas)
-  return new File([blob], file.name.replace(/(\.\w+)?$/, '-rotated.jpg'), { type: 'image/jpeg' })
+  return img.width > img.height
 }
 
 export async function prepareImageForUpload(file: File): Promise<File> {
@@ -90,10 +86,4 @@ export async function prepareImageForUpload(file: File): Promise<File> {
   }
   const compressed = await compressImage(processed)
   return new File([compressed], processed.name, { type: 'image/jpeg' })
-}
-
-export async function prepareImageVariantsForAI(file: File): Promise<{ primary: File; rotated: File | null }> {
-  const primary = await prepareImageForUpload(file)
-  const rotated = await createRotatedVariant(primary)
-  return { primary, rotated }
 }

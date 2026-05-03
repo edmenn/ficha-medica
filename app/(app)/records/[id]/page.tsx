@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import RecordForm from '@/components/records/RecordForm'
-import { prepareImageVariantsForAI } from '@/lib/imageUtils'
+import { isLikelyRotatedDocument, prepareImageForUpload } from '@/lib/imageUtils'
 import type { AnalyzeResponse, CustomFieldTemplate, RecordField, SurgicalRecord, SurgicalFields } from '@/types'
 
 export default function RecordDetailPage() {
@@ -67,11 +67,13 @@ export default function RecordDetailPage() {
         const imageRes = await fetch(record.image_url)
         const blob = await imageRes.blob()
         const file = new File([blob], `${record.id}.jpg`, { type: blob.type || 'image/jpeg' })
-        const variants = await prepareImageVariantsForAI(file)
-        form.append('image', variants.primary)
-        if (variants.rotated) {
-          form.append('image_rotated', variants.rotated)
+        if (await isLikelyRotatedDocument(file)) {
+          setError('La imagen guardada está rotada. Enderezala antes de volver a analizarla con IA.')
+          setReloadingAI(false)
+          return
         }
+        const prepared = await prepareImageForUpload(file)
+        form.append('image', prepared)
       } catch {
         setError('No se pudo preparar la imagen para releer con IA')
         setReloadingAI(false)
