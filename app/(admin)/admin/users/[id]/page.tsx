@@ -12,7 +12,7 @@ export default async function AdminUserPage({ params }: { params: { id: string }
   const [{ data: user }, { data: records }] = await Promise.all([
     service
       .from('users')
-      .select('id, email, role, created_at')
+      .select('id, email, role, is_active, created_at')
       .eq('id', params.id)
       .maybeSingle(),
     service

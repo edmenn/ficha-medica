@@ -37,6 +37,7 @@ export default function UsersPanel({ users, invitations }: Props) {
   const [showInviteForm, setShowInviteForm] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [role, setRole] = useState<'user' | 'admin'>('user')
   const [inviteEmail, setInviteEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -46,6 +47,13 @@ export default function UsersPanel({ users, invitations }: Props) {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    if (password !== passwordConfirm) {
+      setLoading(false)
+      setError('Las contraseñas no coinciden')
+      return
+    }
+
     const res = await fetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -60,6 +68,7 @@ export default function UsersPanel({ users, invitations }: Props) {
     setShowCreateForm(false)
     setEmail('')
     setPassword('')
+    setPasswordConfirm('')
     setRole('user')
     window.location.reload()
   }
@@ -82,15 +91,6 @@ export default function UsersPanel({ users, invitations }: Props) {
     setShowInviteForm(false)
     setInviteEmail('')
     window.location.reload()
-  }
-
-  async function handleStartImpersonation(userId: string) {
-    const res = await fetch('/api/admin/impersonation/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target_user_id: userId }),
-    })
-    if (res.ok) window.location.href = '/records'
   }
 
   return (
@@ -124,6 +124,7 @@ export default function UsersPanel({ users, invitations }: Props) {
           <p className="text-sm font-medium text-white">Nuevo usuario</p>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500" />
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Contraseña (mínimo 8 caracteres)" required minLength={8} className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500" />
+          <input type="password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} placeholder="Repetir contraseña" required minLength={8} className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500" />
           <select value={role} onChange={e => setRole(e.target.value as 'user' | 'admin')} className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm text-white">
             <option value="user">Usuario</option>
             <option value="admin">Admin</option>
@@ -164,44 +165,34 @@ export default function UsersPanel({ users, invitations }: Props) {
       </div>
 
       {tab === 'users' && (
-        <div className="overflow-x-auto rounded-xl border border-slate-800">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/70">
-                <th className="px-4 py-2 text-left text-xs text-slate-400 font-medium">Email</th>
-                <th className="px-4 py-2 text-left text-xs text-slate-400 font-medium">Rol</th>
-                <th className="px-4 py-2 text-left text-xs text-slate-400 font-medium">Estado</th>
-                <th className="px-4 py-2 text-left text-xs text-slate-400 font-medium">Alta</th>
-                <th className="px-4 py-2 text-right text-xs text-slate-400 font-medium">Registros</th>
-                <th className="px-4 py-2 text-right text-xs text-slate-400 font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800 bg-slate-900/40">
-              {users.map(user => (
-                <tr key={user.id}>
-                  <td className="px-4 py-3 text-white">{user.email}</td>
-                  <td className="px-4 py-3 text-slate-300">{user.role}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs ${user.is_active ? 'text-emerald-400' : 'text-slate-500'}`}>
-                      {user.is_active ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-400">{new Date(user.created_at).toLocaleDateString('es-AR')}</td>
-                  <td className="px-4 py-3 text-right text-slate-300">{user.record_count}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Link href={`/admin/users/${user.id}`} className="rounded px-2 py-1 text-xs bg-slate-700 text-white">Ver</Link>
-                      {user.role === 'user' && user.is_active && (
-                        <button onClick={() => handleStartImpersonation(user.id)} className="rounded px-2 py-1 text-xs bg-amber-700 text-white">
-                          Entrar como usuario
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-2">
+          {users.map(user => (
+            <Link
+              key={user.id}
+              href={`/admin/users/${user.id}`}
+              className="block rounded-xl border border-slate-800 bg-slate-900/70 p-4 active:bg-slate-800"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-white">{user.email}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {user.role === 'admin' ? 'Admin' : 'Usuario'} · {user.record_count} registros
+                  </p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${user.is_active ? 'bg-emerald-900/50 text-emerald-300' : 'bg-slate-800 text-slate-500'}`}>
+                  {user.is_active ? 'Activo' : 'Inactivo'}
+                </span>
+              </div>
+              <p className="mt-3 text-xs text-slate-600">
+                Alta {new Date(user.created_at).toLocaleDateString('es-AR')} · tocar para ver opciones
+              </p>
+            </Link>
+          ))}
+          {users.length === 0 && (
+            <p className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-6 text-center text-sm text-slate-500">
+              Sin usuarios
+            </p>
+          )}
         </div>
       )}
 

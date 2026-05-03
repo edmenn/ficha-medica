@@ -9,6 +9,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json() as { role?: 'admin' | 'user'; is_active?: boolean }
   const updates: Record<string, unknown> = {}
 
+  if (params.id === auth.profile.id && (body.role === 'user' || body.is_active === false)) {
+    return NextResponse.json({ error: 'No podés quitarte tus propios permisos de admin' }, { status: 400 })
+  }
+
   if (body.role === 'admin' || body.role === 'user') updates.role = body.role
   if (typeof body.is_active === 'boolean') updates.is_active = body.is_active
 
@@ -31,6 +35,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireAdminApi()
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+  if (params.id === auth.profile.id) {
+    return NextResponse.json({ error: 'No podés eliminar tu propio usuario admin' }, { status: 400 })
+  }
 
   const service = await createServiceClient()
   const { error } = await service

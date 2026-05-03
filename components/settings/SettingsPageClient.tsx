@@ -140,11 +140,12 @@ export default function SettingsPageClient({
     return option.id.toLowerCase().includes(q) || option.name.toLowerCase().includes(q)
   }).slice(0, 50)
   const showCustomFields = initialRole === 'user'
+  const showOperationalSettings = initialRole === 'user'
 
   return (
     <div>
       <h1 className="mb-6 text-xl font-bold">Configuración</h1>
-      <form onSubmit={handleSave} className="space-y-5">
+      {showOperationalSettings && <form onSubmit={handleSave} className="space-y-5">
         <div>
           <label className="mb-1 block text-sm text-slate-400">OpenRouter API Key</label>
           <input
@@ -215,7 +216,7 @@ export default function SettingsPageClient({
         >
           {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar'}
         </button>
-      </form>
+      </form>}
 
       {showCustomFields && <div className="mt-8">
         <h2 className="mb-3 text-sm font-semibold text-slate-400">Campos personalizados</h2>

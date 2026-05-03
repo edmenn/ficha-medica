@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import ImpersonateButton from '@/components/admin/users/ImpersonateButton'
+import UserAdminActions from '@/components/admin/users/UserAdminActions'
 import type { SurgicalRecord, UserProfile } from '@/types'
 
 const STATUS_LABELS: Record<SurgicalRecord['status'], string> = {
@@ -9,7 +9,7 @@ const STATUS_LABELS: Record<SurgicalRecord['status'], string> = {
 }
 
 interface Props {
-  user: Pick<UserProfile, 'id' | 'email' | 'role' | 'created_at'>
+  user: Pick<UserProfile, 'id' | 'email' | 'role' | 'created_at'> & { is_active: boolean }
   records: SurgicalRecord[]
 }
 
@@ -38,6 +38,10 @@ export default function AdminUserDetailPage({ user, records }: Props) {
               <td className="py-2 text-slate-300 text-right">{user.role}</td>
             </tr>
             <tr>
+              <td className="py-2 text-slate-400">Estado</td>
+              <td className="py-2 text-slate-300 text-right">{user.is_active ? 'Activo' : 'Inactivo'}</td>
+            </tr>
+            <tr>
               <td className="py-2 text-slate-400">Alta</td>
               <td className="py-2 text-slate-300 text-right">
                 {new Date(user.created_at).toLocaleDateString('es-AR')}
@@ -53,11 +57,7 @@ export default function AdminUserDetailPage({ user, records }: Props) {
         </table>
       </div>
 
-      {user.role === 'user' && (
-        <div className="mb-6 flex gap-2">
-          <ImpersonateButton userId={user.id} />
-        </div>
-      )}
+      <UserAdminActions userId={user.id} initialRole={user.role} initialIsActive={user.is_active} />
 
       <div>
         <p className="mb-3 text-xs text-slate-500 uppercase tracking-wide">
