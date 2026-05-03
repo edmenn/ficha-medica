@@ -12,6 +12,7 @@ const SAMPLE_RECORDS: SurgicalRecord[] = [
     final_data: {
       paciente: 'García, Juan',
       fecha_cirugia: '2025-04-12',
+      fecha_fin: '2025-04-12',
       hora_inicio: '08:30',
       hora_fin: '10:15',
       duracion: '1h 45min',

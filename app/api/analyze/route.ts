@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { decrypt } from '@/lib/crypto'
 import { createOpenRouterClient, EXTRACTION_PROMPT } from '@/lib/openrouter'
 import { parseAIResponse } from '@/lib/ai-parser'
+import { normalizeSurgicalFields } from '@/lib/record-utils'
 import type { AnalyzeResponse } from '@/types'
 
 export async function POST(req: NextRequest) {
@@ -72,7 +73,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 502 })
   }
 
-  const { fields, record_fields } = parseAIResponse(rawResponse)
+  const parsed = parseAIResponse(rawResponse)
+  const fields = normalizeSurgicalFields(parsed.fields)
+  const record_fields = parsed.record_fields.map(field => ({
+    ...field,
+    ai_value: fields[field.field_name],
+    final_value: fields[field.field_name],
+    confidence: fields[field.field_name] !== null ? field.confidence : 0,
+  }))
 
   // Create record in DB
   const { data: record, error: recordError } = await supabase

@@ -1,7 +1,8 @@
 import type { SurgicalFields, RecordField } from '@/types'
+import { normalizeSurgicalFields } from './record-utils'
 
 const STANDARD_FIELDS: (keyof SurgicalFields)[] = [
-  'paciente', 'fecha_cirugia', 'hora_inicio', 'hora_fin', 'duracion',
+  'paciente', 'fecha_cirugia', 'fecha_fin', 'hora_inicio', 'hora_fin', 'duracion',
   'diagnostico', 'procedimiento', 'cirujano', 'ayudantes',
   'anestesiologo', 'instrumentador', 'sanatorio', 'observaciones',
 ]
@@ -35,11 +36,15 @@ export function parseAIResponse(raw: string): {
     }
   }
 
-  const fields: SurgicalFields = { ...empty }
+  const rawFields: SurgicalFields = { ...empty }
   for (const key of STANDARD_FIELDS) {
     const val = parsed[key]
-    fields[key] = (typeof val === 'string' && val.trim() !== '') ? val.trim() : null
+    rawFields[key] = Array.isArray(val)
+      ? val.map(item => (typeof item === 'string' ? item.trim() : '')).filter(Boolean).join(', ') || null
+      : (typeof val === 'string' && val.trim() !== '') ? val.trim() : null
   }
+
+  const fields = normalizeSurgicalFields(rawFields)
 
   const record_fields = STANDARD_FIELDS.map(field_name => ({
     field_name: field_name as string,

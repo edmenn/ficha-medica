@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { getDurationMinutes } from '@/lib/record-utils'
 import type { SurgicalRecord } from '@/types'
 
 function getDefaultRange() {
@@ -16,14 +17,8 @@ function getDefaultRange() {
 function computeStats(records: SurgicalRecord[]) {
   const total = records.length
   const durations = records
-    .map(r => r.final_data.duracion)
-    .filter(Boolean)
-    .map(d => {
-      const hMatch = d!.match(/(\d+)h/)
-      const mMatch = d!.match(/(\d+)min/)
-      return (parseInt(hMatch?.[1] ?? '0') * 60) + parseInt(mMatch?.[1] ?? '0')
-    })
-    .filter(n => n > 0)
+    .map(r => getDurationMinutes(r.final_data))
+    .filter((n): n is number => typeof n === 'number' && n > 0)
   const avgMin = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0
   const bySanatorio = records.reduce<Record<string, number>>((acc, r) => {
     const s = r.final_data.sanatorio ?? 'Sin especificar'

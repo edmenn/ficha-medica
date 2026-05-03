@@ -4,9 +4,10 @@ import { parseAIResponse } from './ai-parser'
 const SAMPLE_VALID = {
   paciente: 'García, Juan Carlos',
   fecha_cirugia: '2025-04-12',
+  fecha_fin: '2025-04-12',
   hora_inicio: '08:30',
   hora_fin: '10:15',
-  duracion: '1h 45min',
+  duracion: '5min',
   diagnostico: 'Apendicitis aguda',
   procedimiento: 'Apendicectomía laparoscópica',
   cirujano: 'Dr. Osvaldo Pérez',
@@ -31,6 +32,12 @@ describe('parseAIResponse', () => {
     expect(result.fields.cirujano).toBe('Dr. Osvaldo Pérez')
   })
 
+  it('keeps all ayudantes when the model returns an array', () => {
+    const raw = JSON.stringify({ ...SAMPLE_VALID, ayudantes: ['Dr. Martínez', 'Dra. Gómez'] })
+    const result = parseAIResponse(raw)
+    expect(result.fields.ayudantes).toBe('Dr. Martínez, Dra. Gómez')
+  })
+
   it('returns null for missing fields, not invented values', () => {
     const partial = { paciente: 'Test', procedimiento: null }
     const result = parseAIResponse(JSON.stringify(partial))
@@ -45,6 +52,7 @@ describe('parseAIResponse', () => {
     const obsField = result.record_fields.find(f => f.field_name === 'observaciones')
     expect(pacienteField?.confidence).toBe(1)
     expect(obsField?.confidence).toBe(0)
+    expect(result.fields.duracion).toBe('1h 45min')
   })
 
   it('returns empty fields on unparseable response', () => {

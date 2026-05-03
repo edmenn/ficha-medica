@@ -2,7 +2,8 @@
 
 const FIELD_LABELS: Record<string, string> = {
   paciente: 'Paciente',
-  fecha_cirugia: 'Fecha de cirugía',
+  fecha_cirugia: 'Fecha inicio',
+  fecha_fin: 'Fecha fin',
   hora_inicio: 'Hora inicio',
   hora_fin: 'Hora fin',
   duracion: 'Duración',

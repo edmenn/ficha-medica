@@ -1,5 +1,6 @@
 'use client'
 
+import { normalizeSurgicalFields } from '@/lib/record-utils'
 import FieldRow from './FieldRow'
 import type { CustomFieldTemplate, RecordField, SurgicalFields } from '@/types'
 
@@ -13,14 +14,14 @@ interface Props {
 }
 
 const FIELD_ORDER: string[] = [
-  'paciente', 'fecha_cirugia', 'hora_inicio', 'hora_fin', 'duracion',
+  'paciente', 'fecha_cirugia', 'fecha_fin', 'hora_inicio', 'hora_fin', 'duracion',
   'diagnostico', 'procedimiento', 'cirujano', 'ayudantes',
   'anestesiologo', 'instrumentador', 'sanatorio', 'observaciones',
 ]
 
 export default function RecordForm({ fields, recordFields, onChange, onSave, saving, customFields = [] }: Props) {
   function handleChange(key: string, value: string) {
-    onChange({ ...fields, [key]: value || null })
+    onChange(normalizeSurgicalFields({ ...fields, [key]: value || null }))
   }
 
   const orderedFields: string[] = [

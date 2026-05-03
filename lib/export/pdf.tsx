@@ -17,7 +17,8 @@ const styles = StyleSheet.create({
 function RecordBlock({ record }: { record: SurgicalRecord }) {
   const f = record.final_data
   const pairs: [string, string | null][] = [
-    ['Paciente', f.paciente], ['Fecha', f.fecha_cirugia],
+    ['Paciente', f.paciente], ['Fecha inicio', f.fecha_cirugia],
+    ['Fecha fin', f.fecha_fin ?? null],
     ['Hora inicio', f.hora_inicio], ['Hora fin', f.hora_fin],
     ['Duración', f.duracion], ['Diagnóstico', f.diagnostico],
     ['Procedimiento', f.procedimiento], ['Cirujano', f.cirujano],

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { normalizeSurgicalFields } from '@/lib/record-utils'
 import type { RecordStatus, SurgicalFields } from '@/types'
 
 export async function GET(req: NextRequest) {
@@ -40,7 +41,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'final_data or extracted_data is required' }, { status: 400 })
   }
 
-  const extractedData = body.extracted_data ?? finalData
+  const normalizedFinalData = normalizeSurgicalFields(finalData)
+  const extractedData = normalizeSurgicalFields(body.extracted_data ?? normalizedFinalData)
   const status = body.status ?? 'draft'
 
   const { data: record, error } = await supabase
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest) {
       image_path: body.image_path ?? 'manual-entry',
       ai_raw_response: null,
       extracted_data: extractedData,
-      final_data: finalData,
+      final_data: normalizedFinalData,
       status,
     })
     .select()
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? 'Error al crear registro' }, { status: 500 })
   }
 
-  const recordFields = Object.entries(finalData).map(([field_name, final_value]) => ({
+  const recordFields = Object.entries(normalizedFinalData).map(([field_name, final_value]) => ({
     record_id: record.id,
     field_name,
     ai_value: extractedData[field_name] ?? null,
@@ -76,7 +78,7 @@ export async function POST(req: NextRequest) {
     user_id: user.id,
     record_id: record.id,
     action: 'created',
-    diff: finalData,
+    diff: normalizedFinalData,
   })
 
   return NextResponse.json(record, { status: 201 })

@@ -15,6 +15,7 @@ export interface UserProfile {
 export interface SurgicalFields {
   paciente: string | null
   fecha_cirugia: string | null
+  fecha_fin: string | null
   hora_inicio: string | null
   hora_fin: string | null
   duracion: string | null

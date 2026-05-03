@@ -17,6 +17,7 @@ Devolvé SOLO el JSON con estos campos (usá null para los que no encuentres, nu
 {
   "paciente": string | null,
   "fecha_cirugia": string | null,
+  "fecha_fin": string | null,
   "hora_inicio": string | null,
   "hora_fin": string | null,
   "duracion": string | null,
@@ -32,6 +33,9 @@ Devolvé SOLO el JSON con estos campos (usá null para los que no encuentres, nu
 
 Reglas:
 - No inventes información que no esté en el documento
+- fecha_cirugia es la fecha de inicio
+- fecha_fin es la fecha de finalización si figura; si no figura, usá null
 - Fechas en formato YYYY-MM-DD si es posible
 - Horas en formato HH:MM
-- Si hay múltiples ayudantes, separarlos con coma`
+- Si hay múltiples ayudantes, devolvelos todos en un solo string separados por coma
+- Si el documento lista ayudantes en varias líneas, incluí todas las líneas`

@@ -7,8 +7,12 @@ export default function UsersAdminPanel() {
   const [users, setUsers] = useState<UserProfile[]>([])
   const [invites, setInvites] = useState<Invitation[]>([])
   const [email, setEmail] = useState('')
+  const [newUserEmail, setNewUserEmail] = useState('')
+  const [newUserPassword, setNewUserPassword] = useState('')
+  const [newUserRole, setNewUserRole] = useState<'admin' | 'user'>('user')
   const [inviteUrl, setInviteUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [creatingUser, setCreatingUser] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -36,6 +40,28 @@ export default function UsersAdminPanel() {
     setLoading(false)
   }
 
+  async function createUser(e: React.FormEvent) {
+    e.preventDefault()
+    setCreatingUser(true)
+    setError(null)
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: newUserEmail, password: newUserPassword, role: newUserRole }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setError(data.error ?? 'No se pudo crear el usuario')
+      setCreatingUser(false)
+      return
+    }
+    setUsers(prev => [...prev, data.user])
+    setNewUserEmail('')
+    setNewUserPassword('')
+    setNewUserRole('user')
+    setCreatingUser(false)
+  }
+
   return (
     <div>
       <h1 className="text-xl font-bold mb-2">Administración</h1>
@@ -52,6 +78,44 @@ export default function UsersAdminPanel() {
             <span className="text-xs text-green-400">● activo</span>
           </div>
         ))}
+      </div>
+
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-slate-400 mb-3">Crear usuario manualmente</h2>
+        <form onSubmit={createUser} className="space-y-2 mb-3">
+          <input
+            type="email"
+            value={newUserEmail}
+            onChange={e => setNewUserEmail(e.target.value)}
+            placeholder="usuario@ejemplo.com"
+            required
+            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm"
+          />
+          <input
+            type="password"
+            value={newUserPassword}
+            onChange={e => setNewUserPassword(e.target.value)}
+            placeholder="Contraseña inicial (mínimo 8 caracteres)"
+            minLength={8}
+            required
+            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm"
+          />
+          <select
+            value={newUserRole}
+            onChange={e => setNewUserRole(e.target.value as 'admin' | 'user')}
+            className="w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm"
+          >
+            <option value="user">Usuario</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button
+            type="submit"
+            disabled={creatingUser}
+            className="w-full bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm font-medium"
+          >
+            {creatingUser ? 'Creando...' : 'Crear usuario'}
+          </button>
+        </form>
       </div>
 
       <div className="mb-6">
