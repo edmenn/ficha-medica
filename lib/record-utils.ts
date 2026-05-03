@@ -2,6 +2,7 @@ import type { SurgicalFields } from '@/types'
 
 const TIME_RE = /^(\d{1,2}):(\d{2})$/
 const DURATION_TOKEN_RE = /(\d+)\s*(h|min)/gi
+const DATE_RE = /^(\d{1,4})[\/.\-](\d{1,2})[\/.\-](\d{1,4})$/
 
 function normalizeText(value: unknown): string | null {
   if (typeof value === 'string') {
@@ -17,6 +18,72 @@ function normalizeText(value: unknown): string | null {
   }
 
   return null
+}
+
+function normalizeDateString(value: string | null): string | null {
+  if (!value) return null
+  const cleaned = value
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/[.,]/g, match => (match === '.' ? '-' : match))
+    .replace(/[–—]/g, '-')
+    .replace(/\//g, '-')
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) {
+    return cleaned
+  }
+
+  const match = cleaned.match(DATE_RE)
+  if (!match) return cleaned
+
+  const first = Number(match[1])
+  const second = Number(match[2])
+  const third = Number(match[3])
+
+  if ([first, second, third].some(Number.isNaN)) return cleaned
+
+  if (match[1].length === 4) {
+    const year = first
+    const month = second
+    const day = third
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+    }
+  }
+
+  // Interpret 2-digit trailing year as DD-MM-YY, common in these forms.
+  const day = first
+  const month = second
+  let year = third
+  if (match[3].length <= 2) {
+    year += 2000
+  }
+
+  if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+    return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+  }
+
+  return cleaned
+}
+
+function normalizeTimeString(value: string | null): string | null {
+  if (!value) return null
+  const cleaned = value
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/[.;,]/g, ':')
+    .replace(/[hH]$/g, '')
+
+  const match = cleaned.match(/^(\d{1,2})[:\-](\d{2})$/)
+  if (!match) return cleaned
+
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || hours > 23 || minutes > 59) {
+    return cleaned
+  }
+
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 }
 
 function parseTimeToMinutes(value: string | null | undefined): number | null {
@@ -97,6 +164,10 @@ export function normalizeSurgicalFields(input: Partial<SurgicalFields>): Surgica
     normalized[key] = normalizeText(rawValue)
   }
 
+  normalized.fecha_cirugia = normalizeDateString(normalized.fecha_cirugia)
+  normalized.fecha_fin = normalizeDateString(normalized.fecha_fin)
+  normalized.hora_inicio = normalizeTimeString(normalized.hora_inicio)
+  normalized.hora_fin = normalizeTimeString(normalized.hora_fin)
   normalized.ayudantes = normalizeText(fields.ayudantes)
   normalized.duracion = computeDurationFromFields(normalized)
 

@@ -32,9 +32,12 @@ Devolvé SOLO el JSON con estos campos (usá null para los que no encuentres, nu
 }
 
 Reglas:
+- La imagen puede venir rotada; imaginá rotarla hasta leerla correctamente antes de extraer
 - No inventes información que no esté en el documento
+- No confundas la fecha/hora de impresión de la hoja con la fecha/hora clínica de la cirugía
 - fecha_cirugia es la fecha de inicio
 - fecha_fin es la fecha de finalización si figura; si no figura, usá null
+- Si ves una fecha corta como 21-04-26 o 21/04/26, interpretala como DD-MM-AA => 2026-04-21
 - Fechas en formato YYYY-MM-DD si es posible
 - Horas en formato HH:MM
 - Si hay múltiples ayudantes, devolvelos todos en un solo string separados por coma

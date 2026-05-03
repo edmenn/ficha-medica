@@ -41,20 +41,22 @@ describe('parseAIResponse', () => {
   it('maps common alias keys returned by the model', () => {
     const raw = JSON.stringify({
       paciente: 'García, Juan Carlos',
-      fecha_inicio: '2025-04-12',
-      fecha_finalizacion: '2025-04-13',
-      hora_de_inicio: '08:30',
-      hora_salida: '10:15',
+      fecha_inicio: '21-04-26',
+      fecha_finalizacion: '21/04/26',
+      hora_de_inicio: '14.12',
+      hora_salida: '16;01',
       anestesista: 'Dra. López',
       instrumentadora: 'Enf. Rodríguez',
       hospital: 'Sanatorio San Lucas',
     })
     const result = parseAIResponse(raw)
-    expect(result.fields.fecha_cirugia).toBe('2025-04-12')
-    expect(result.fields.fecha_fin).toBe('2025-04-13')
-    expect(result.fields.hora_fin).toBe('10:15')
+    expect(result.fields.fecha_cirugia).toBe('2026-04-21')
+    expect(result.fields.fecha_fin).toBe('2026-04-21')
+    expect(result.fields.hora_inicio).toBe('14:12')
+    expect(result.fields.hora_fin).toBe('16:01')
     expect(result.fields.instrumentador).toBe('Enf. Rodríguez')
     expect(result.fields.sanatorio).toBe('Sanatorio San Lucas')
+    expect(result.fields.duracion).toBe('1h 49min')
   })
 
   it('returns null for missing fields, not invented values', () => {
