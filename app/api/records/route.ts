@@ -18,7 +18,9 @@ export async function GET(req: NextRequest) {
   const { data, error, count } = await supabase
     .from('surgical_records')
     .select('*', { count: 'exact' })
-    .order('created_at', { ascending: false })
+    .order('final_data->>fecha_cirugia', { ascending: true })
+    .order('final_data->>hora_inicio', { ascending: true })
+    .order('created_at', { ascending: true })
     .range(offset, offset + limit - 1)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
