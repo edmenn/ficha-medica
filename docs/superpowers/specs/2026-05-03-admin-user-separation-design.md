@@ -172,14 +172,18 @@ Refactor `components/admin/AdminUserDetailPage.tsx`.
 
 **Shows:**
 - Header: email, rol, estado, fecha de alta
-- Stat row: total registros, drafts, finals
+- Info row (plain text/table, NOT stat cards): total registros, cantidad drafts, cantidad finals — labeled as data about the supervised user, e.g. "Registros: 12 (4 borradores, 8 finales)"
 - Table: "Registros del usuario supervisado" — last 10 records (fecha, cirujano, sanatorio, estado, link)
 - Actions: Editar usuario, Entrar como usuario, Desactivar/Activar
 
 **Does NOT show:**
+- Stat cards, dashboard blocks, or any visual pattern from the user dashboard
+- `RecordCard` or any component from `components/records/`
 - "Registros", "Borradores", "Finales" cards from user flow
 - "Este usuario todavía no tiene registros" message
 - Editable `RecordForm`
+
+**Visual rule:** metrics are plain administrative data (text row or summary line inside an info panel). Must not resemble the user's own dashboard at any point. Components used here must come exclusively from `components/admin/`.
 
 Data fetched SSR via service role. Reuses query patterns from `lib/records-db.ts`.
 
