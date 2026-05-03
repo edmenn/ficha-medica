@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'user'
 export type RecordStatus = 'draft' | 'reviewed' | 'final'
-export type AuditAction = 'created' | 'edited' | 'exported'
+export type AuditAction = 'created' | 'edited' | 'exported' | 'impersonation_started' | 'impersonation_ended'
 export type FieldType = 'text' | 'number' | 'date' | 'bool'
 
 export interface UserProfile {

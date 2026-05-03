@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireOperationalUser } from '@/lib/auth'
+import { requireOperationalContext } from '@/lib/auth/guards'
 import { selectRecordImagePaths } from '@/lib/records-db'
 import { normalizeSurgicalFields, validateSurgicalFields } from '@/lib/record-utils'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import type { RecordStatus, SurgicalFields } from '@/types'
 
 function getImagePaths(record: { image_paths?: string[] | null; image_path?: string | null }) {
@@ -12,14 +12,15 @@ function getImagePaths(record: { image_paths?: string[] | null; image_path?: str
 }
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const ctx = await requireOperationalContext()
+  if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
-  const { data, error } = await supabase
+  const service = await createServiceClient()
+  const { data, error } = await service
     .from('surgical_records')
     .select('*')
     .eq('id', params.id)
+    .eq('user_id', ctx.effectiveUserId)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 404 })
@@ -29,7 +30,6 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ ...data, image_url: null, image_urls: [] })
   }
 
-  const service = await createServiceClient()
   const imageUrls = await Promise.all(imagePaths.map(async imagePath => {
     const { data: signed } = await service.storage
       .from('surgical-images')
@@ -45,12 +45,10 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireOperationalUser()
-  if ('error' in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status })
-  }
+  const ctx = await requireOperationalContext()
+  if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
-  const supabase = await createClient()
+  const service = await createServiceClient()
   const body = await req.json() as { final_data?: SurgicalFields; status?: RecordStatus }
   const normalizedFinalData = body.final_data ? normalizeSurgicalFields(body.final_data) : undefined
 
@@ -61,11 +59,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
   }
 
-  const { data: current } = await supabase
+  const { data: current } = await service
     .from('surgical_records')
     .select('final_data')
     .eq('id', params.id)
-    .eq('user_id', auth.profile.id)
+    .eq('user_id', ctx.effectiveUserId)
     .single()
 
   const payload: { final_data?: SurgicalFields; status?: RecordStatus; updated_at: string } = {
@@ -74,11 +72,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (normalizedFinalData) payload.final_data = normalizedFinalData
   if (body.status) payload.status = body.status
 
-  const { data, error } = await supabase
+  const { data, error } = await service
     .from('surgical_records')
     .update(payload)
     .eq('id', params.id)
-    .eq('user_id', auth.profile.id)
+    .eq('user_id', ctx.effectiveUserId)
     .select()
     .single()
 
@@ -95,8 +93,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
 
     if (Object.keys(diff).length > 0) {
-      const { error: auditError } = await supabase.from('audit_log').insert({
-        user_id: auth.profile.id,
+      const { error: auditError } = await service.from('audit_log').insert({
+        user_id: ctx.profile.id,
         record_id: params.id,
         action: 'edited',
         diff,
@@ -109,26 +107,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireOperationalUser()
-  if ('error' in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status })
-  }
+  const ctx = await requireOperationalContext()
+  if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
-  const supabase = await createClient()
-  const { data: record } = await selectRecordImagePaths(supabase, params.id, auth.profile.id)
+  const service = await createServiceClient()
+  const { data: record } = await selectRecordImagePaths(service, params.id, ctx.effectiveUserId)
 
-  const { error } = await supabase
+  const { error } = await service
     .from('surgical_records')
     .delete()
     .eq('id', params.id)
-    .eq('user_id', auth.profile.id)
+    .eq('user_id', ctx.effectiveUserId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const imagePaths = getImagePaths(record ?? {})
   const removablePaths = imagePaths.filter(path => path !== 'manual-entry')
   if (removablePaths.length > 0) {
-    const service = await createServiceClient()
     await service.storage.from('surgical-images').remove(removablePaths)
   }
 

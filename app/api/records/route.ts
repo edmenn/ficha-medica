@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireOperationalUser } from '@/lib/auth'
+import { requireOperationalContext } from '@/lib/auth/guards'
 import { insertSurgicalRecord } from '@/lib/records-db'
 import { compareDateStringsDesc, normalizeSurgicalFields, validateSurgicalFields } from '@/lib/record-utils'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import type { RecordStatus, SurgicalFields } from '@/types'
 
 function getPrimaryImagePath(record: { image_paths?: string[] | null; image_path?: string | null }) {
@@ -10,9 +10,8 @@ function getPrimaryImagePath(record: { image_paths?: string[] | null; image_path
 }
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const ctx = await requireOperationalContext()
+  if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
   const { searchParams } = new URL(req.url)
   const rawPage = parseInt(searchParams.get('page') ?? '1')
@@ -22,9 +21,11 @@ export async function GET(req: NextRequest) {
   const includeImages = searchParams.get('includeImages') === '1'
   const offset = (page - 1) * limit
 
-  const { data, error } = await supabase
+  const service = await createServiceClient()
+  const { data, error } = await service
     .from('surgical_records')
     .select('*')
+    .eq('user_id', ctx.effectiveUserId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -41,7 +42,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ records, total: count, page, pageSize: limit })
   }
 
-  const service = await createServiceClient()
   const records = await Promise.all(pagedData.map(async record => {
     const imagePath = getPrimaryImagePath(record)
     if (!imagePath || imagePath === 'manual-entry') {
@@ -59,12 +59,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireOperationalUser()
-  if ('error' in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status })
-  }
+  const ctx = await requireOperationalContext()
+  if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
-  const supabase = await createClient()
+  const service = await createServiceClient()
   const body = await req.json() as {
     image_path?: string
     image_paths?: string[]
@@ -92,8 +90,8 @@ export async function POST(req: NextRequest) {
       ? [body.image_path]
       : ['manual-entry']
 
-  const { data: record, error } = await insertSurgicalRecord(supabase, {
-    user_id: auth.profile.id,
+  const { data: record, error } = await insertSurgicalRecord(service, {
+    user_id: ctx.effectiveUserId,
     image_path: imagePaths[0] ?? 'manual-entry',
     image_paths: imagePaths,
     ai_raw_response: null,
@@ -106,8 +104,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? 'Error al crear registro' }, { status: 500 })
   }
 
-  const { error: auditError } = await supabase.from('audit_log').insert({
-    user_id: auth.profile.id,
+  const { error: auditError } = await service.from('audit_log').insert({
+    user_id: ctx.profile.id,
     record_id: record.id,
     action: 'created',
     diff: normalizedFinalData,

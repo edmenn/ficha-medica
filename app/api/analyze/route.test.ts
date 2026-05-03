@@ -1,16 +1,14 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const requireOperationalUserMock = vi.fn()
-const createClientMock = vi.fn()
+const requireOperationalContextMock = vi.fn()
 const createServiceClientMock = vi.fn()
 
-vi.mock('@/lib/auth', () => ({
-  requireOperationalUser: requireOperationalUserMock,
+vi.mock('@/lib/auth/guards', () => ({
+  requireOperationalContext: requireOperationalContextMock,
 }))
 
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: createClientMock,
   createServiceClient: createServiceClientMock,
 }))
 
@@ -46,7 +44,7 @@ describe('POST /api/analyze', () => {
   })
 
   it('returns 401 when unauthenticated', async () => {
-    requireOperationalUserMock.mockResolvedValue({ error: 'Unauthorized', status: 401 })
+    requireOperationalContextMock.mockResolvedValue({ error: 'Unauthorized', status: 401 })
 
     const { POST } = await import('./route')
     const response = await POST(makeAnalyzeRequest({ type: 'image/jpeg', size: 1 }))
@@ -56,8 +54,7 @@ describe('POST /api/analyze', () => {
   })
 
   it('returns 400 for disallowed MIME type', async () => {
-    requireOperationalUserMock.mockResolvedValue({ profile: { id: 'u1', role: 'user' } })
-    createClientMock.mockResolvedValue({})
+    requireOperationalContextMock.mockResolvedValue({ profile: { id: 'u1', role: 'user' }, effectiveUserId: 'u1' })
     createServiceClientMock.mockResolvedValue({})
 
     const { POST } = await import('./route')
@@ -70,8 +67,7 @@ describe('POST /api/analyze', () => {
   })
 
   it('returns 400 for file over 10MB', async () => {
-    requireOperationalUserMock.mockResolvedValue({ profile: { id: 'u1', role: 'user' } })
-    createClientMock.mockResolvedValue({})
+    requireOperationalContextMock.mockResolvedValue({ profile: { id: 'u1', role: 'user' }, effectiveUserId: 'u1' })
     createServiceClientMock.mockResolvedValue({})
 
     const { POST } = await import('./route')

@@ -1,12 +1,12 @@
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireOperationalUser } from '@/lib/auth'
+import { requireOperationalContext } from '@/lib/auth/guards'
 import { decrypt } from '@/lib/crypto'
 import { parseAIResponse } from '@/lib/ai-parser'
 import { buildExtractionPrompt, createOpenRouterClient, MODELS_WITH_JSON_MODE } from '@/lib/openrouter'
 import { insertSurgicalRecord, selectRecordForMerge, updateMergedRecord } from '@/lib/records-db'
 import { mergeSurgicalFieldsFillNulls, normalizeSurgicalFields } from '@/lib/record-utils'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import type { AnalyzeResponse, SurgicalFields } from '@/types'
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
@@ -52,14 +52,10 @@ async function uploadAndSign(service: Awaited<ReturnType<typeof createServiceCli
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireOperationalUser()
-  if ('error' in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status })
-  }
+  const ctx = await requireOperationalContext()
+  if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
-  const supabase = await createClient()
   const service = await createServiceClient()
-  const profile = auth.profile
 
   const formData = await req.formData()
   const imageFile = formData.get('image') as File | null
@@ -73,10 +69,10 @@ export async function POST(req: NextRequest) {
   const rotatedError = rotatedImageFile ? validateImageFile(rotatedImageFile) : null
   if (rotatedError) return NextResponse.json({ error: rotatedError }, { status: 400 })
 
-  const { data: userSettings } = await supabase
+  const { data: userSettings } = await service
     .from('users')
     .select('openrouter_key, preferred_model')
-    .eq('id', profile.id)
+    .eq('id', ctx.effectiveUserId)
     .single()
 
   if (!userSettings?.openrouter_key) {
@@ -90,20 +86,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'API key inválida, reconfigurala en Configuración' }, { status: 422 })
   }
 
-  const { data: customTemplates } = await supabase
+  const { data: customTemplates } = await service
     .from('custom_field_templates')
     .select('field_name, field_type')
-    .eq('user_id', profile.id)
+    .eq('user_id', ctx.effectiveUserId)
     .order('display_order')
 
-  const primaryUpload = await uploadAndSign(service, profile.id, imageFile!)
+  const primaryUpload = await uploadAndSign(service, ctx.effectiveUserId, imageFile!)
   if ('error' in primaryUpload) {
     return NextResponse.json({ error: primaryUpload.error }, { status: 500 })
   }
 
   let rotatedUpload: Awaited<ReturnType<typeof uploadAndSign>> | null = null
   if (rotatedImageFile) {
-    rotatedUpload = await uploadAndSign(service, profile.id, rotatedImageFile)
+    rotatedUpload = await uploadAndSign(service, ctx.effectiveUserId, rotatedImageFile)
     if ('error' in rotatedUpload) {
       await service.storage.from('surgical-images').remove([primaryUpload.path])
       return NextResponse.json({ error: rotatedUpload.error }, { status: 500 })
@@ -144,10 +140,10 @@ export async function POST(req: NextRequest) {
   const fields = normalizeSurgicalFields(parseAIResponse(rawResponse).fields)
 
   if (!existingRecordId && !confirmDuplicate && fields.paciente && fields.fecha_cirugia) {
-    const { data: existing } = await supabase
+    const { data: existing } = await service
       .from('surgical_records')
       .select('id')
-      .eq('user_id', profile.id)
+      .eq('user_id', ctx.effectiveUserId)
       .eq('final_data->>paciente', fields.paciente)
       .eq('final_data->>fecha_cirugia', fields.fecha_cirugia)
       .limit(1)
@@ -166,9 +162,9 @@ export async function POST(req: NextRequest) {
 
   if (existingRecordId) {
     const { data: existingRecord, error: existingError } = await selectRecordForMerge(
-      supabase,
+      service,
       existingRecordId,
-      profile.id
+      ctx.effectiveUserId
     )
 
     if (existingError || !existingRecord) {
@@ -186,7 +182,7 @@ export async function POST(req: NextRequest) {
     )
     const imagePaths = [...(existingRecord.image_paths ?? []), primaryUpload.path]
 
-    const { error: updateError } = await updateMergedRecord(supabase, existingRecord.id, profile.id, {
+    const { error: updateError } = await updateMergedRecord(service, existingRecord.id, ctx.effectiveUserId, {
       extracted_data: mergedExtracted,
       final_data: mergedFinal,
       image_paths: imagePaths,
@@ -204,8 +200,8 @@ export async function POST(req: NextRequest) {
     } satisfies AnalyzeResponse)
   }
 
-  const { data: record, error: recordError } = await insertSurgicalRecord(supabase, {
-    user_id: profile.id,
+  const { data: record, error: recordError } = await insertSurgicalRecord(service, {
+    user_id: ctx.effectiveUserId,
     image_path: primaryUpload.path,
     image_paths: [primaryUpload.path],
     ai_raw_response: rawResponse,
@@ -219,8 +215,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Error al guardar registro' }, { status: 500 })
   }
 
-  const { error: auditError } = await supabase.from('audit_log').insert({
-    user_id: profile.id,
+  const { error: auditError } = await service.from('audit_log').insert({
+    user_id: ctx.profile.id,
     record_id: record.id,
     action: 'created',
     diff: fields,

@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
-import { getCurrentUserProfile, getHomePathForRole } from '@/lib/auth'
+import { getCurrentUserProfile } from '@/lib/auth'
 
 export default async function Home() {
   const profile = await getCurrentUserProfile()
-  redirect(profile ? getHomePathForRole(profile.role) : '/login')
+  if (!profile) redirect('/login')
+  if (profile.role === 'admin') redirect('/admin')
+  redirect('/records')
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireOperationalContext } from '@/lib/auth/guards'
 import { compareDateStringsDesc, isDateInRange } from '@/lib/record-utils'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 
 function normalizeFilterValue(value: string | null | undefined): string {
   return (value ?? '')
@@ -15,9 +16,8 @@ function getPrimaryImagePath(record: { image_paths?: string[] | null; image_path
 }
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const ctx = await requireOperationalContext()
+  if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q') ?? ''
@@ -27,9 +27,11 @@ export async function GET(req: NextRequest) {
   const sanatorio = searchParams.get('sanatorio')
   const status = searchParams.get('status')
 
-  let query = supabase
+  const service = await createServiceClient()
+  let query = service
     .from('surgical_records')
     .select('*')
+    .eq('user_id', ctx.effectiveUserId)
     .limit(200)
 
   if (status) query = query.eq('status', status)
@@ -86,7 +88,6 @@ export async function GET(req: NextRequest) {
       return right.created_at.localeCompare(left.created_at)
     })
 
-  const service = await createServiceClient()
   const records = await Promise.all(filtered.slice(0, 50).map(async record => {
     const imagePath = getPrimaryImagePath(record)
     if (!imagePath || imagePath === 'manual-entry') {

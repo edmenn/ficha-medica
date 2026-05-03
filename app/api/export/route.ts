@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentUserProfile } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { requireOperationalContext } from '@/lib/auth/guards'
+import { createServiceClient } from '@/lib/supabase/server'
 import { buildWorkbook } from '@/lib/export/excel'
 import { buildPDF } from '@/lib/export/pdf'
 import { compareDateStringsDesc, isDateInRange } from '@/lib/record-utils'
 import type { ExportQuery } from '@/types'
 
 export async function GET(req: NextRequest) {
-  const profile = await getCurrentUserProfile()
-  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const supabase = await createClient()
+  const ctx = await requireOperationalContext()
+  if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
   const { searchParams } = new URL(req.url)
   const format = searchParams.get('format') as ExportQuery['format']
@@ -22,14 +20,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'format, from, and to are required' }, { status: 400 })
   }
 
-  let query = supabase
+  const service = await createServiceClient()
+  let query = service
     .from('surgical_records')
     .select('*')
     .eq('status', 'final')
-
-  if (profile.role !== 'admin') {
-    query = query.eq('user_id', profile.id)
-  }
+    .eq('user_id', ctx.effectiveUserId)
 
   if (sanatorio) {
     query = query.ilike("final_data->>'sanatorio'", `%${sanatorio}%`)
@@ -47,8 +43,8 @@ export async function GET(req: NextRequest) {
       return right.created_at.localeCompare(left.created_at)
     })
 
-  await supabase.from('audit_log').insert({
-    user_id: profile.id,
+  await service.from('audit_log').insert({
+    user_id: ctx.profile.id,
     record_id: null,
     action: 'exported',
     diff: { format, from, to, sanatorio, count: filteredRecords.length },

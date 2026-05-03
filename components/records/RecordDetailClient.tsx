@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import RecordForm from '@/components/records/RecordForm'
-import { deleteRecordAction, updateRecordAction } from '@/app/(app)/records/[id]/actions'
+import { deleteRecordAction, updateRecordAction } from '@/app/(user)/records/[id]/actions'
 import { prepareImageForUpload } from '@/lib/imageUtils'
 import type { AnalyzeResponse, CustomFieldTemplate, SurgicalRecord, SurgicalFields } from '@/types'
 
