@@ -31,6 +31,7 @@ export interface SurgicalRecord {
   user_id: string
   image_path: string
   image_paths: string[]
+  source_image_hash?: string | null
   image_url?: string | null
   image_urls?: string[]
   ai_raw_response: unknown

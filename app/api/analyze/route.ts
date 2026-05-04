@@ -1,10 +1,10 @@
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOperationalContext } from '@/lib/auth/guards'
 import { decrypt } from '@/lib/crypto'
 import { parseAIResponse } from '@/lib/ai-parser'
 import { buildExtractionPrompt, createOpenRouterClient, MODELS_WITH_JSON_MODE } from '@/lib/openrouter'
-import { insertSurgicalRecord, selectRecordForMerge, updateMergedRecord } from '@/lib/records-db'
+import { findRecordBySourceImageHash, insertSurgicalRecord, selectRecordForMerge, updateMergedRecord } from '@/lib/records-db'
 import { mergeSurgicalFieldsFillNulls, normalizeSurgicalFields } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { AnalyzeResponse, SurgicalFields } from '@/types'
@@ -28,9 +28,17 @@ function validateImageFile(imageFile: File | null) {
   return null
 }
 
-async function uploadAndSign(service: Awaited<ReturnType<typeof createServiceClient>>, userId: string, file: File) {
+function hashBuffer(buffer: ArrayBuffer) {
+  return createHash('sha256').update(Buffer.from(buffer)).digest('hex')
+}
+
+async function uploadAndSign(
+  service: Awaited<ReturnType<typeof createServiceClient>>,
+  userId: string,
+  file: File,
+  buffer: ArrayBuffer
+) {
   const path = safeImagePath(userId, file.type)
-  const buffer = await file.arrayBuffer()
   const { error: uploadError } = await service.storage
     .from('surgical-images')
     .upload(path, buffer, { contentType: file.type })
@@ -69,6 +77,24 @@ export async function POST(req: NextRequest) {
   const rotatedError = rotatedImageFile ? validateImageFile(rotatedImageFile) : null
   if (rotatedError) return NextResponse.json({ error: rotatedError }, { status: 400 })
 
+  const primaryBuffer = await imageFile!.arrayBuffer()
+  const sourceImageHash = hashBuffer(primaryBuffer)
+
+  if (!existingRecordId) {
+    const { data: existingByHash } = await findRecordBySourceImageHash(
+      service,
+      ctx.effectiveUserId,
+      sourceImageHash
+    )
+
+    if (existingByHash?.length) {
+      return NextResponse.json({
+        error: 'Esta imagen ya fue subida previamente',
+        existing_id: existingByHash[0].id,
+      }, { status: 409 })
+    }
+  }
+
   const { data: userSettings } = await service
     .from('users')
     .select('openrouter_key, preferred_model')
@@ -92,14 +118,19 @@ export async function POST(req: NextRequest) {
     .eq('user_id', ctx.effectiveUserId)
     .order('display_order')
 
-  const primaryUpload = await uploadAndSign(service, ctx.effectiveUserId, imageFile!)
+  const primaryUpload = await uploadAndSign(service, ctx.effectiveUserId, imageFile!, primaryBuffer)
   if ('error' in primaryUpload) {
     return NextResponse.json({ error: primaryUpload.error }, { status: 500 })
   }
 
   let rotatedUpload: Awaited<ReturnType<typeof uploadAndSign>> | null = null
   if (rotatedImageFile) {
-    rotatedUpload = await uploadAndSign(service, ctx.effectiveUserId, rotatedImageFile)
+    rotatedUpload = await uploadAndSign(
+      service,
+      ctx.effectiveUserId,
+      rotatedImageFile,
+      await rotatedImageFile.arrayBuffer()
+    )
     if ('error' in rotatedUpload) {
       await service.storage.from('surgical-images').remove([primaryUpload.path])
       return NextResponse.json({ error: rotatedUpload.error }, { status: 500 })
@@ -204,6 +235,7 @@ export async function POST(req: NextRequest) {
     user_id: ctx.effectiveUserId,
     image_path: primaryUpload.path,
     image_paths: [primaryUpload.path],
+    source_image_hash: sourceImageHash,
     ai_raw_response: rawResponse,
     extracted_data: fields,
     final_data: fields,
