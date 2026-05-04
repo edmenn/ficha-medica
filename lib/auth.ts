@@ -1,5 +1,5 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import type { UserProfile } from '@/types'
+import type { UserProfile, UserRole } from '@/types'
 
 export async function getCurrentUserProfile(): Promise<Pick<UserProfile, 'id' | 'email' | 'role' | 'preferred_model'> | null> {
   const supabase = await createClient()
@@ -14,4 +14,8 @@ export async function getCurrentUserProfile(): Promise<Pick<UserProfile, 'id' | 
     .maybeSingle()
 
   return data ?? null
+}
+
+export function getHomePathForRole(role: UserRole) {
+  return role === 'admin' ? '/admin' : '/records'
 }

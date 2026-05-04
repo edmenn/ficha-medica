@@ -1,7 +1,6 @@
 -- Enable RLS on all tables
 alter table public.users enable row level security;
 alter table public.surgical_records enable row level security;
-alter table public.record_fields enable row level security;
 alter table public.custom_field_templates enable row level security;
 alter table public.invitations enable row level security;
 alter table public.audit_log enable row level security;
@@ -52,32 +51,6 @@ create policy "records_update_own" on public.surgical_records
 drop policy if exists "records_delete_own" on public.surgical_records;
 create policy "records_delete_own" on public.surgical_records
   for delete using (auth.uid() = user_id);
-
--- record_fields: follow parent record ownership
-create policy "fields_select" on public.record_fields
-  for select using (
-    exists (
-      select 1 from public.surgical_records r
-      where r.id = record_id and (
-        r.user_id = auth.uid() or
-        public.is_admin()
-      )
-    )
-  );
-create policy "fields_insert" on public.record_fields
-  for insert with check (
-    exists (
-      select 1 from public.surgical_records r
-      where r.id = record_id and r.user_id = auth.uid()
-    )
-  );
-create policy "fields_update" on public.record_fields
-  for update using (
-    exists (
-      select 1 from public.surgical_records r
-      where r.id = record_id and r.user_id = auth.uid()
-    )
-  );
 
 -- custom_field_templates: own only
 create policy "templates_own" on public.custom_field_templates

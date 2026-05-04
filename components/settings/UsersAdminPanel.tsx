@@ -1,11 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useState } from 'react'
 import type { Invitation, UserProfile } from '@/types'
 
-export default function UsersAdminPanel() {
-  const [users, setUsers] = useState<UserProfile[]>([])
-  const [invites, setInvites] = useState<Invitation[]>([])
+export type AdminUserSummary = Pick<UserProfile, 'id' | 'email' | 'role' | 'created_at'> & {
+  preferred_model?: string | null
+  record_count?: number
+}
+
+interface Props {
+  initialUsers: AdminUserSummary[]
+  initialInvites: Invitation[]
+}
+
+export default function UsersAdminPanel({ initialUsers, initialInvites }: Props) {
+  const [users, setUsers] = useState<AdminUserSummary[]>(initialUsers)
+  const [invites, setInvites] = useState<Invitation[]>(initialInvites)
   const [email, setEmail] = useState('')
   const [newUserEmail, setNewUserEmail] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
@@ -14,11 +25,6 @@ export default function UsersAdminPanel() {
   const [loading, setLoading] = useState(false)
   const [creatingUser, setCreatingUser] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/api/users').then(r => r.json()).then(d => setUsers(d.users ?? []))
-    fetch('/api/invites/list').then(r => r.json()).then(d => setInvites(d.invites ?? []))
-  }, [])
 
   async function sendInvite(e: React.FormEvent) {
     e.preventDefault()
@@ -36,6 +42,9 @@ export default function UsersAdminPanel() {
       return
     }
     setInviteUrl(data.url)
+    if (data.invite) {
+      setInvites(prev => [data.invite, ...prev])
+    }
     setEmail('')
     setLoading(false)
   }
@@ -73,9 +82,14 @@ export default function UsersAdminPanel() {
           <div key={u.id} className="bg-slate-800 rounded-xl p-3 mb-2 flex justify-between items-center">
             <div>
               <p className="text-white text-sm">{u.email}</p>
-              <p className="text-xs text-slate-500">{u.role}</p>
+              <p className="text-xs text-slate-500">{u.role} · {u.record_count ?? 0} registro(s)</p>
             </div>
-            <span className="text-xs text-green-400">● activo</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-green-400">● activo</span>
+              <Link href={`/admin/users/${u.id}`} className="text-xs text-blue-400">
+                Ver usuario
+              </Link>
+            </div>
           </div>
         ))}
       </div>

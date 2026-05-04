@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'user'
 export type RecordStatus = 'draft' | 'reviewed' | 'final'
-export type AuditAction = 'created' | 'edited' | 'exported'
+export type AuditAction = 'created' | 'edited' | 'exported' | 'impersonation_started' | 'impersonation_ended'
 export type FieldType = 'text' | 'number' | 'date' | 'bool'
 
 export interface UserProfile {
@@ -15,10 +15,6 @@ export interface UserProfile {
 export interface SurgicalFields {
   paciente: string | null
   fecha_cirugia: string | null
-  fecha_fin: string | null
-  hora_inicio: string | null
-  hora_fin: string | null
-  duracion: string | null
   diagnostico: string | null
   procedimiento: string | null
   cirujano: string | null
@@ -30,27 +26,19 @@ export interface SurgicalFields {
   [key: string]: string | null  // custom fields
 }
 
-export interface RecordField {
-  id: string
-  record_id: string
-  field_name: string
-  ai_value: string | null
-  final_value: string | null
-  confidence: number  // 0–1
-}
-
 export interface SurgicalRecord {
   id: string
   user_id: string
   image_path: string
+  image_paths: string[]
   image_url?: string | null
+  image_urls?: string[]
   ai_raw_response: unknown
   extracted_data: SurgicalFields
   final_data: SurgicalFields
   status: RecordStatus
   created_at: string
   updated_at: string
-  record_fields?: RecordField[]
 }
 
 export interface CustomFieldTemplate {
@@ -69,6 +57,7 @@ export interface Invitation {
   invited_by: string
   accepted_at: string | null
   expires_at: string
+  created_at?: string
 }
 
 export interface AuditEntry {
@@ -84,13 +73,14 @@ export interface AuditEntry {
 export interface AnalyzeResponse {
   record_id: string
   extracted_data: SurgicalFields
-  record_fields: RecordField[]
+  warning?: 'duplicate'
+  existing_id?: string
 }
 
 export interface ExportQuery {
   format: 'xlsx' | 'pdf'
-  from: string   // ISO date
-  to: string     // ISO date
+  from: string
+  to: string
   sanatorio?: string
   status?: RecordStatus
 }

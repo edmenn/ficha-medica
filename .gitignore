@@ -27,6 +27,8 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env.production
+.env.test
 
 # vercel
 .vercel
@@ -37,7 +39,11 @@ yarn-error.log*
 .mcp.json
 .rtk/
 AGENTS.md
+test-results/
+supabase/.temp/
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Added by code-review-graph
+.code-review-graph/

@@ -1,30 +1,39 @@
 import { NextResponse } from 'next/server'
-import { getCurrentUserProfile } from '@/lib/auth'
+import { requireAdminApi } from '@/lib/auth/guards'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export async function GET() {
-  const profile = await getCurrentUserProfile()
-  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (profile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const auth = await requireAdminApi()
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const service = await createServiceClient()
-  const { data, error } = await service
+  const { data: users, error } = await service
     .from('users')
-    .select('id, email, role, created_at')
+    .select('id, email, role, is_active, created_at')
     .order('created_at')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ users: data })
+
+  const { data: counts } = await service
+    .from('surgical_records')
+    .select('user_id')
+
+  const countMap = new Map<string, number>()
+  for (const row of counts ?? []) {
+    countMap.set(row.user_id, (countMap.get(row.user_id) ?? 0) + 1)
+  }
+
+  const result = (users ?? []).map(user => ({
+    ...user,
+    record_count: countMap.get(user.id) ?? 0,
+  }))
+
+  return NextResponse.json({ users: result })
 }
 
 export async function POST(req: Request) {
-  const profile = await getCurrentUserProfile()
-  if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (profile.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const auth = await requireAdminApi()
+  if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const body = await req.json() as { email?: string; password?: string; role?: 'admin' | 'user' }
   const email = body.email?.trim().toLowerCase()

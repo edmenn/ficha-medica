@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { requireOperationalContext } from '@/lib/auth/guards'
+import { compareDateStringsDesc, isDateInRange } from '@/lib/record-utils'
+import { createServiceClient } from '@/lib/supabase/server'
 
 function normalizeFilterValue(value: string | null | undefined): string {
   return (value ?? '')
@@ -9,10 +11,13 @@ function normalizeFilterValue(value: string | null | undefined): string {
     .toLowerCase()
 }
 
+function getPrimaryImagePath(record: { image_paths?: string[] | null; image_path?: string | null }) {
+  return record.image_paths?.[0] ?? record.image_path ?? null
+}
+
 export async function GET(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const ctx = await requireOperationalContext()
+  if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q') ?? ''
@@ -22,15 +27,13 @@ export async function GET(req: NextRequest) {
   const sanatorio = searchParams.get('sanatorio')
   const status = searchParams.get('status')
 
-  let query = supabase
+  const service = await createServiceClient()
+  let query = service
     .from('surgical_records')
     .select('*')
-    .order('final_data->>fecha_cirugia', { ascending: false })
-    .order('created_at', { ascending: false })
+    .eq('user_id', ctx.effectiveUserId)
     .limit(200)
 
-  if (from) query = query.gte('final_data->>fecha_cirugia', from)
-  if (to) query = query.lte('final_data->>fecha_cirugia', to)
   if (status) query = query.eq('status', status)
 
   const { data, error } = await query
@@ -46,6 +49,10 @@ export async function GET(req: NextRequest) {
   const selectedSanatorio = normalizeFilterValue(sanatorio)
 
   const filtered = (data ?? []).filter(record => {
+    if ((from || to) && !isDateInRange(record.final_data?.fecha_cirugia, from, to)) {
+      return false
+    }
+
     if (selectedCirujano) {
       const recordCirujano = normalizeFilterValue(record.final_data?.cirujano)
       if (recordCirujano !== selectedCirujano) return false
@@ -75,16 +82,21 @@ export async function GET(req: NextRequest) {
 
     return terms.every(term => normalizedHaystack.includes(term))
   })
+    .sort((left, right) => {
+      const byDate = compareDateStringsDesc(left.final_data?.fecha_cirugia, right.final_data?.fecha_cirugia)
+      if (byDate !== 0) return byDate
+      return right.created_at.localeCompare(left.created_at)
+    })
 
-  const service = await createServiceClient()
   const records = await Promise.all(filtered.slice(0, 50).map(async record => {
-    if (!record.image_path || record.image_path === 'manual-entry') {
+    const imagePath = getPrimaryImagePath(record)
+    if (!imagePath || imagePath === 'manual-entry') {
       return { ...record, image_url: null }
     }
 
     const { data: signed } = await service.storage
       .from('surgical-images')
-      .createSignedUrl(record.image_path, 3600)
+      .createSignedUrl(imagePath, 3600)
 
     return { ...record, image_url: signed?.signedUrl ?? null }
   }))

@@ -7,8 +7,7 @@ interface Props { record: SurgicalRecord }
 export default function RecordCard({ record }: Props) {
   const f = record.final_data
   const date = f.fecha_cirugia
-    ? new Date(f.fecha_cirugia + 'T12:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : new Date(record.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    ?? new Date(record.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
   return (
     <Link href={`/records/${record.id}`}>

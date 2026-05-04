@@ -5,16 +5,19 @@ interface Props {
   record: SurgicalRecord
 }
 
-function formatDate(record: SurgicalRecord) {
-  const source = record.final_data.fecha_cirugia
-    ? `${record.final_data.fecha_cirugia}T12:00:00`
-    : record.created_at
+const STATUS_LABELS: Record<SurgicalRecord['status'], string> = {
+  draft: 'Borrador',
+  reviewed: 'Revisado',
+  final: 'Final',
+}
 
-  return new Date(source).toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
+function formatDate(record: SurgicalRecord) {
+  return record.final_data.fecha_cirugia
+    ?? new Date(record.created_at).toLocaleDateString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
 }
 
 export default function RecordListItem({ record }: Props) {
@@ -32,12 +35,10 @@ export default function RecordListItem({ record }: Props) {
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
               <span>{formatDate(record)}</span>
               {f.sanatorio && <span>{f.sanatorio}</span>}
-              {f.hora_inicio && <span>Inicio {f.hora_inicio}</span>}
-              {f.duracion && <span>{f.duracion}</span>}
             </div>
           </div>
           <span className="shrink-0 rounded-full bg-slate-800 px-2.5 py-1 text-xs text-slate-300">
-            {record.status}
+            {STATUS_LABELS[record.status]}
           </span>
         </div>
       </div>
