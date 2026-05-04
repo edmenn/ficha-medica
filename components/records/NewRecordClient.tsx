@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import ImageCapture from '@/components/capture/ImageCapture'
 import { updateRecordAction } from '@/app/(user)/records/[id]/actions'
 import RecordForm from '@/components/records/RecordForm'
+import BackToRecordsButton from '@/components/ui/BackToRecordsButton'
 import { prepareImageForUpload } from '@/lib/imageUtils'
 import { flushPendingUploads, savePendingUpload } from '@/lib/pending-uploads'
 import type { AnalyzeResponse, CustomFieldTemplate, SurgicalFields } from '@/types'
@@ -176,7 +177,7 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
   return (
     <div>
       <div className="mb-6 flex items-center gap-3">
-        <button onClick={() => router.back()} className="text-slate-400">←</button>
+        <BackToRecordsButton />
         <h1 className="text-xl font-bold">
           {step === 'capture' && 'Nueva ficha'}
           {step === 'processing' && 'Analizando...'}

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import RecordForm from '@/components/records/RecordForm'
+import BackToRecordsButton from '@/components/ui/BackToRecordsButton'
 import { deleteRecordAction, updateRecordAction } from '@/app/(user)/records/[id]/actions'
 import { prepareImageForUpload } from '@/lib/imageUtils'
 import type { AnalyzeResponse, CustomFieldTemplate, SurgicalRecord, SurgicalFields } from '@/types'
@@ -92,7 +93,7 @@ export default function RecordDetailClient({ record: initialRecord, customFields
   return (
     <div>
       <div className="mb-6 flex items-center gap-3">
-        <button onClick={() => router.back()} className="text-slate-400">←</button>
+        <BackToRecordsButton />
         <h1 className="text-xl font-bold">Detalle</h1>
       </div>
       {error && (
