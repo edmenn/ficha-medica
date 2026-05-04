@@ -1,10 +1,19 @@
-const CACHE = 'ficha-medica-v1'
-const APP_SHELL = ['/', '/new', '/records', '/search', '/reports']
+const CACHE = 'ficha-medica-v2'
+const APP_SHELL = ['/']
 const DB_NAME = 'ficha-medica-offline'
 const STORE_NAME = 'pending-uploads'
 
 self.addEventListener('install', event => {
+  self.skipWaiting()
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)))
+})
+
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys()
+    await Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))
+    await self.clients.claim()
+  })())
 })
 
 self.addEventListener('fetch', event => {
@@ -18,6 +27,13 @@ self.addEventListener('fetch', event => {
           headers: { 'Content-Type': 'application/json' },
         })
       )
+    )
+    return
+  }
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request).then(cached => cached ?? caches.match('/')))
     )
     return
   }
