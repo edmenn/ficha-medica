@@ -113,14 +113,16 @@ export default function RecordDetailClient({ record: initialRecord, customFields
         </div>
       )}
       <div className="mb-5 flex gap-3">
-        <button
-          type="button"
-          onClick={handleReloadAI}
-          disabled={reloadingAI || !record.image_url}
-          className="flex-1 rounded-xl bg-indigo-700 py-3 font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
-        >
-          {reloadingAI ? 'Releyendo...' : 'Releer con IA'}
-        </button>
+        {record.image_url && (
+          <button
+            type="button"
+            onClick={handleReloadAI}
+            disabled={reloadingAI}
+            className="flex-1 rounded-xl bg-indigo-700 py-3 font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
+          >
+            {reloadingAI ? 'Releyendo...' : 'Releer con IA'}
+          </button>
+        )}
         <button
           type="button"
           onClick={handleDelete}
