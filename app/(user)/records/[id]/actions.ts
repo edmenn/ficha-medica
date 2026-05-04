@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { requireOperationalContext } from '@/lib/auth/guards'
+import { getImagePaths, selectRecordImagePaths } from '@/lib/records-db'
 import { normalizeSurgicalFields, validateSurgicalFields } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { SurgicalFields } from '@/types'
@@ -38,13 +39,25 @@ export async function deleteRecordAction(id: string) {
   if ('error' in ctx) throw new Error(ctx.error)
 
   const service = await createServiceClient()
-  const { error } = await service
+  const { data: record } = await selectRecordImagePaths(service, id, ctx.effectiveUserId)
+
+  const { data: deletedRecord, error } = await service
     .from('surgical_records')
     .delete()
     .eq('id', id)
     .eq('user_id', ctx.effectiveUserId)
+    .select('id')
+    .maybeSingle()
 
   if (error) throw new Error(error.message)
+  if (!deletedRecord) throw new Error('No se encontró el registro a borrar')
 
+  const imagePaths = getImagePaths(record ?? {})
+  const removablePaths = imagePaths.filter(path => path !== 'manual-entry')
+  if (removablePaths.length > 0) {
+    await service.storage.from('surgical-images').remove(removablePaths)
+  }
+
+  revalidatePath(`/records/${id}`)
   revalidatePath('/records')
 }

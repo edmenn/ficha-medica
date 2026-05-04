@@ -5,6 +5,7 @@ type RecordLike = {
   id: string
   image_path?: string | null
   image_paths?: string[] | null
+  source_image_hash?: string | null
   extracted_data?: SurgicalFields
   final_data?: SurgicalFields
 }
@@ -14,16 +15,24 @@ type SupabaseErrorLike = {
   message?: string
 }
 
-export function isMissingImagePathsColumn(error: SupabaseErrorLike | null | undefined) {
+function isMissingColumn(error: SupabaseErrorLike | null | undefined, column: string) {
   return Boolean(
     error && (
       error.code === 'PGRST204' ||
-      (error.message?.includes('image_paths') && (
+      (error.message?.includes(column) && (
         error.message.includes('does not exist') ||
         error.message.includes('schema cache')
       ))
     )
   )
+}
+
+export function isMissingImagePathsColumn(error: SupabaseErrorLike | null | undefined) {
+  return isMissingColumn(error, 'image_paths')
+}
+
+export function isMissingSourceImageHashColumn(error: SupabaseErrorLike | null | undefined) {
+  return isMissingColumn(error, 'source_image_hash')
 }
 
 export function getImagePaths(record: { image_paths?: string[] | null; image_path?: string | null }) {
@@ -42,6 +51,25 @@ export async function insertSurgicalRecord(
     const legacyPayload = { ...payload }
     delete legacyPayload.image_paths
     result = await supabase.from('surgical_records').insert(legacyPayload).select().single()
+  }
+
+  return result
+}
+
+export async function findRecordBySourceImageHash(
+  supabase: SupabaseClient,
+  userId: string,
+  sourceImageHash: string
+) {
+  const result = await supabase
+    .from('surgical_records')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('source_image_hash', sourceImageHash)
+    .limit(1)
+
+  if (isMissingSourceImageHashColumn(result.error)) {
+    return { data: [], error: null }
   }
 
   return result

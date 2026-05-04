@@ -4,6 +4,15 @@ import { compareDateStringsDesc, isDateInRange, normalizeDateString } from '@/li
 import { createServiceClient } from '@/lib/supabase/server'
 import type { SurgicalRecord } from '@/types'
 
+function toCalendarDate(value: string) {
+  const normalized = normalizeDateString(value)
+  if (!normalized) return ''
+
+  const [day, month, year] = normalized.split('-')
+  if (!day || !month || !year) return ''
+  return `${year}-${month}-${day}`
+}
+
 function getDefaultRange() {
   const to = new Date()
   const from = new Date()
@@ -85,22 +94,22 @@ export default async function ReportsPage({
       <form className="mb-4">
         <div className="mb-3 flex gap-2">
           <div className="flex-1">
-            <label className="mb-1 block text-xs text-slate-500">Desde</label>
+            <label htmlFor="reports-from" className="mb-1 block text-xs text-slate-500">Desde</label>
             <input
-              type="text"
+              id="reports-from"
+              type="date"
               name="from"
-              defaultValue={from}
-              placeholder="dd-mm-aaaa"
+              defaultValue={toCalendarDate(from)}
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
           </div>
           <div className="flex-1">
-            <label className="mb-1 block text-xs text-slate-500">Hasta</label>
+            <label htmlFor="reports-to" className="mb-1 block text-xs text-slate-500">Hasta</label>
             <input
-              type="text"
+              id="reports-to"
+              type="date"
               name="to"
-              defaultValue={to}
-              placeholder="dd-mm-aaaa"
+              defaultValue={toCalendarDate(to)}
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
           </div>

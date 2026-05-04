@@ -78,4 +78,33 @@ describe('POST /api/analyze', () => {
       error: 'Imagen demasiado grande (máximo 10MB)',
     })
   })
+
+  it('returns 409 when the same image was already uploaded', async () => {
+    requireOperationalContextMock.mockResolvedValue({ profile: { id: 'u1', role: 'user' }, effectiveUserId: 'u1' })
+
+    const limitMock = vi.fn().mockResolvedValue({ data: [{ id: 'record-1' }], error: null })
+    const eqHashMock = vi.fn().mockReturnValue({ limit: limitMock })
+    const eqUserMock = vi.fn().mockReturnValue({ eq: eqHashMock })
+    const selectMock = vi.fn().mockReturnValue({ eq: eqUserMock })
+    const fromMock = vi.fn().mockReturnValue({ select: selectMock })
+
+    createServiceClientMock.mockResolvedValue({
+      from: fromMock,
+    })
+
+    const file = {
+      type: 'image/jpeg',
+      size: 4,
+      arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from([1, 2, 3, 4]).buffer),
+    }
+
+    const { POST } = await import('./route')
+    const response = await POST(makeAnalyzeRequest(file))
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Esta imagen ya fue subida previamente',
+      existing_id: 'record-1',
+    })
+  })
 })
