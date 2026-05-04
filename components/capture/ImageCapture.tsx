@@ -4,10 +4,11 @@ import { useRef } from 'react'
 
 interface Props {
   onImageSelected: (file: File) => void
+  onManualEntry?: () => void
   disabled?: boolean
 }
 
-export default function ImageCapture({ onImageSelected, disabled }: Props) {
+export default function ImageCapture({ onImageSelected, onManualEntry, disabled }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
@@ -37,7 +38,17 @@ export default function ImageCapture({ onImageSelected, disabled }: Props) {
       >
         🖼️ Subir imagen existente
       </button>
-      <p className="text-center text-xs text-slate-500">JPG · PNG · HEIC · PDF</p>
+      {onManualEntry && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onManualEntry}
+          className="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 text-sm font-medium text-slate-200 disabled:opacity-50"
+        >
+          Cargar manualmente
+        </button>
+      )}
+      <p className="text-center text-xs text-slate-500">JPG · PNG · HEIC</p>
       <input
         ref={cameraInputRef}
         type="file"
@@ -49,7 +60,7 @@ export default function ImageCapture({ onImageSelected, disabled }: Props) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,.heic,.heif,.pdf"
+        accept="image/*,.heic,.heif"
         className="hidden"
         onChange={handleFileChange}
       />
