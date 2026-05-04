@@ -9,7 +9,8 @@ import RecordForm from '@/components/records/RecordForm'
 import BackToRecordsButton from '@/components/ui/BackToRecordsButton'
 import { prepareImageForUpload } from '@/lib/imageUtils'
 import { flushPendingUploads, savePendingUpload } from '@/lib/pending-uploads'
-import type { AnalyzeResponse, CustomFieldTemplate, SurgicalFields } from '@/types'
+import { emptySurgicalFields } from '@/lib/record-utils'
+import type { AnalyzeResponse, CustomFieldTemplate, SurgicalFields, SurgicalRecord } from '@/types'
 
 type Step = 'capture' | 'processing' | 'review'
 
@@ -28,6 +29,7 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
   const [saving, setSaving] = useState(false)
   const [processingExtraPage, setProcessingExtraPage] = useState(false)
   const [pendingDuplicateFile, setPendingDuplicateFile] = useState<File | null>(null)
+  const [pendingDuplicateExistingId, setPendingDuplicateExistingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/custom-fields')
@@ -157,7 +159,28 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
     setPendingDuplicateFile(null)
   }
 
-  async function handleSave() {
+  async function checkLogicalDuplicate(recordId: string, currentFields: SurgicalFields) {
+    const res = await fetch('/api/records/duplicates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: currentFields, exclude_record_id: recordId }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error ?? 'No se pudo verificar duplicados')
+    }
+
+    const data = await res.json() as { existing_id?: string | null }
+    return data.existing_id ?? null
+  }
+
+  async function persistRecord(currentFields: SurgicalFields) {
+    await updateRecordAction(analyzeData!.record_id, currentFields)
+    router.push('/records')
+    router.refresh()
+  }
+
+  async function handleSave(options?: { confirmDuplicate?: boolean }) {
     if (!analyzeData || !fields) return
     if (analyzeData.warning === 'duplicate' && pendingDuplicateFile) {
       setError('Confirmá si querés crear una ficha duplicada o abrí la existente.')
@@ -165,11 +188,55 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
     }
     setSaving(true)
     try {
-      await updateRecordAction(analyzeData.record_id, fields)
-      router.push('/records')
-      router.refresh()
+      if (!options?.confirmDuplicate) {
+        const existingId = await checkLogicalDuplicate(analyzeData.record_id, fields)
+        if (existingId) {
+          setPendingDuplicateExistingId(existingId)
+          setSaving(false)
+          return
+        }
+      }
+      setPendingDuplicateExistingId(null)
+      await persistRecord(fields)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar')
+      setSaving(false)
+    }
+  }
+
+  async function handleManualEntry() {
+    const emptyFields = emptySurgicalFields()
+    setError(null)
+    setSaving(true)
+
+    try {
+      const res = await fetch('/api/records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          final_data: emptyFields,
+          extracted_data: emptyFields,
+          status: 'draft',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error ?? 'No se pudo crear la ficha manual')
+      }
+
+      const record = data as SurgicalRecord
+      setAnalyzeData({
+        record_id: record.id,
+        extracted_data: emptyFields,
+      })
+      setFields(emptyFields)
+      setPendingDuplicateExistingId(null)
+      setPendingDuplicateFile(null)
+      setPreviews([])
+      setStep('review')
+      setSaving(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo crear la ficha manual')
       setSaving(false)
     }
   }
@@ -192,7 +259,7 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
       )}
 
       {step === 'capture' && !blockedForRole && (
-        <ImageCapture onImageSelected={handleImageSelected} />
+        <ImageCapture onImageSelected={handleImageSelected} onManualEntry={handleManualEntry} disabled={saving} />
       )}
 
       {step === 'processing' && (
@@ -243,6 +310,27 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
                 <button
                   type="button"
                   onClick={handleConfirmDuplicate}
+                  className="flex-1 rounded-lg bg-amber-700 px-4 py-2.5 text-white"
+                >
+                  Crear igual
+                </button>
+              </div>
+            </div>
+          )}
+          {pendingDuplicateExistingId && (
+            <div className="mb-4 rounded-lg border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200">
+              <p className="mb-3">Hay una ficha posiblemente duplicada con los mismos datos clave.</p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.push(`/records/${pendingDuplicateExistingId}`)}
+                  className="flex-1 rounded-lg bg-slate-700 px-4 py-2.5 text-white"
+                >
+                  Ver existente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSave({ confirmDuplicate: true })}
                   className="flex-1 rounded-lg bg-amber-700 px-4 py-2.5 text-white"
                 >
                   Crear igual
