@@ -23,6 +23,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className="flex flex-col items-center gap-0.5 flex-1"
             >
               {item.cta ? (

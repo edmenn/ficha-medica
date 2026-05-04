@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import RecordForm from '@/components/records/RecordForm'
+import BackToRecordsButton from '@/components/ui/BackToRecordsButton'
 import { prepareImageForUpload } from '@/lib/imageUtils'
 import type { AnalyzeResponse, CustomFieldTemplate, RecordField, SurgicalRecord, SurgicalFields } from '@/types'
 
@@ -119,7 +120,7 @@ export default function RecordDetailPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => router.back()} className="text-slate-400">←</button>
+        <BackToRecordsButton />
         <h1 className="text-xl font-bold">Detalle</h1>
       </div>
       {error && (

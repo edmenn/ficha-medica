@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import ImageCapture from '@/components/capture/ImageCapture'
 import RecordForm from '@/components/records/RecordForm'
+import BackToRecordsButton from '@/components/ui/BackToRecordsButton'
 import { prepareImageForUpload } from '@/lib/imageUtils'
 import type { AnalyzeResponse, CustomFieldTemplate, SurgicalFields } from '@/types'
 
@@ -77,7 +78,7 @@ export default function NewRecordPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => router.back()} className="text-slate-400">←</button>
+        <BackToRecordsButton />
         <h1 className="text-xl font-bold">
           {step === 'capture' && 'Nueva ficha'}
           {step === 'processing' && 'Analizando...'}
