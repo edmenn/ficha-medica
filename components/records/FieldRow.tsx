@@ -1,6 +1,6 @@
 'use client'
 
-import Combobox from '@/components/ui/Combobox'
+import { useEffect, useRef } from 'react'
 
 const FIELD_LABELS: Record<string, string> = {
   paciente: 'Paciente',
@@ -15,14 +15,6 @@ const FIELD_LABELS: Record<string, string> = {
   observaciones: 'Observaciones',
 }
 
-const AUTOCOMPLETE_FIELDS = new Set([
-  'cirujano',
-  'anestesiologo',
-  'sanatorio',
-  'procedimiento',
-  'instrumentador',
-])
-
 interface Props {
   fieldName: string
   value: string
@@ -34,7 +26,15 @@ export default function FieldRow({ fieldName, value, aiValue, onChange }: Props)
   const label = FIELD_LABELS[fieldName] ?? fieldName
   const wasExtracted = aiValue !== null
   const wasModified = value !== (aiValue ?? '')
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null)
   const sharedClassName = 'w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm'
+
+  useEffect(() => {
+    if (!textAreaRef.current) return
+    const element = textAreaRef.current
+    element.style.height = 'auto'
+    element.style.height = `${element.scrollHeight}px`
+  }, [value])
 
   return (
     <div className={`mb-4 border-l-2 ${wasExtracted ? 'border-emerald-600' : 'border-slate-700'} pl-3`}>
@@ -43,22 +43,14 @@ export default function FieldRow({ fieldName, value, aiValue, onChange }: Props)
         {wasExtracted && <span className="text-xs text-emerald-500">IA</span>}
         {wasModified && <span className="text-xs text-amber-500">editado</span>}
       </label>
-      {AUTOCOMPLETE_FIELDS.has(fieldName) ? (
-        <Combobox
-          field={fieldName}
-          value={value}
-          onChange={onChange}
-          className={sharedClassName}
-        />
-      ) : (
-        <input
-          type="text"
-          value={value}
-          onChange={event => onChange(event.target.value)}
-          placeholder="—"
-          className={sharedClassName}
-        />
-      )}
+      <textarea
+        ref={textAreaRef}
+        rows={1}
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        placeholder="—"
+        className={`${sharedClassName} min-h-12 resize-none overflow-hidden whitespace-pre-wrap break-words`}
+      />
     </div>
   )
 }
