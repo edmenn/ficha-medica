@@ -81,12 +81,12 @@ export default async function RecordsPage({
 
   return (
     <div>
-      <div className="mb-4 flex items-end justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Registros</h1>
           {total > 0 && <p className="mt-1 text-sm text-slate-500">{total} registros</p>}
         </div>
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           <MonthFilter months={monthOptions} currentMonth={month} pageSize={pageSize} />
           <div>
             <label className="mb-1 block text-xs text-slate-500">Ver</label>
