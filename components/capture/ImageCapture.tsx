@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { validateImageForUpload } from '@/lib/imageUtils'
 
 interface Props {
   onImageSelected: (file: File) => void
@@ -8,14 +9,13 @@ interface Props {
   disabled?: boolean
 }
 
-const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
-
 export default function ImageCapture({ onImageSelected, onManualEntry, disabled }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const [folderImages, setFolderImages] = useState<File[]>([])
   const [folderPreviews, setFolderPreviews] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     return () => {
@@ -23,19 +23,38 @@ export default function ImageCapture({ onImageSelected, onManualEntry, disabled 
     }
   }, [folderPreviews])
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) onImageSelected(file)
+  async function handleSingleFile(file: File) {
+    const validationError = await validateImageForUpload(file)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+    setError(null)
+    onImageSelected(file)
   }
 
-  function handleFolderChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? [])
-    const images = files.filter(file => ALLOWED_TYPES.has(file.type))
-    if (images.length === 0) return
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) void handleSingleFile(file)
+  }
 
+  async function handleFolderChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    const validImages: File[] = []
+    for (const file of files) {
+      if (await validateImageForUpload(file)) continue
+      validImages.push(file)
+    }
+    if (validImages.length === 0) {
+      setError('No se encontraron imágenes válidas en la carpeta')
+      e.target.value = ''
+      return
+    }
+
+    setError(null)
     folderPreviews.forEach(url => URL.revokeObjectURL(url))
-    setFolderImages(images)
-    setFolderPreviews(images.map(file => URL.createObjectURL(file)))
+    setFolderImages(validImages)
+    setFolderPreviews(validImages.map(file => URL.createObjectURL(file)))
     e.target.value = ''
   }
 
@@ -107,7 +126,7 @@ export default function ImageCapture({ onImageSelected, onManualEntry, disabled 
         onClick={() => fileInputRef.current?.click()}
         className="w-full bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2"
       >
-        🖼️ Subir imagen existente
+        🖼️ Elegir imagen
       </button>
       <button
         type="button"
@@ -115,7 +134,7 @@ export default function ImageCapture({ onImageSelected, onManualEntry, disabled 
         onClick={() => folderInputRef.current?.click()}
         className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2"
       >
-        📁 Importar de una carpeta (capturas)
+        📁 Importar de documentos
       </button>
       {onManualEntry && (
         <button
@@ -127,7 +146,8 @@ export default function ImageCapture({ onImageSelected, onManualEntry, disabled 
           Cargar manualmente
         </button>
       )}
-      <p className="text-center text-xs text-slate-500">JPG · PNG · HEIC</p>
+      {error && <p className="text-center text-xs text-red-400">{error}</p>}
+      <p className="text-center text-xs text-slate-500">JPG · PNG · WEBP · HEIC</p>
       <input
         ref={cameraInputRef}
         type="file"
@@ -139,7 +159,7 @@ export default function ImageCapture({ onImageSelected, onManualEntry, disabled 
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,.heic,.heif"
+        accept="image/png,image/jpeg,image/jpg,image/webp,.heic,.heif"
         className="hidden"
         onChange={handleFileChange}
       />
@@ -148,7 +168,7 @@ export default function ImageCapture({ onImageSelected, onManualEntry, disabled 
         type="file"
         // @ts-expect-error webkitdirectory no está tipado en el DOM
         webkitdirectory=""
-        accept="image/*,.heic,.heif"
+        accept="image/png,image/jpeg,image/jpg,image/webp,.heic,.heif"
         className="hidden"
         onChange={handleFolderChange}
       />

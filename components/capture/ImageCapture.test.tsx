@@ -19,18 +19,19 @@ describe('ImageCapture', () => {
     expect(onManualEntry).toHaveBeenCalledTimes(1)
   })
 
-  it('exposes a folder import action', () => {
+  it('exposes an "Elegir imagen" action', () => {
     const onImageSelected = vi.fn()
     render(<ImageCapture onImageSelected={onImageSelected} />)
 
-    expect(screen.getByRole('button', { name: /importar de una carpeta/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /elegir imagen/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /importar de documentos/i })).toBeInTheDocument()
   })
 
-  it('shows a gallery from the selected folder and picks a single image', () => {
+  it('shows a gallery from the selected folder and picks a single image', async () => {
     const onImageSelected = vi.fn()
     render(<ImageCapture onImageSelected={onImageSelected} />)
 
-    const folderInput = screen.getByRole('button', { name: /importar de una carpeta/i })
+    const folderInput = screen.getByRole('button', { name: /importar de documentos/i })
 
     Object.defineProperty(HTMLInputElement.prototype, 'webkitdirectory', { value: true, configurable: true })
 
@@ -46,7 +47,7 @@ describe('ImageCapture', () => {
     fireEvent.click(folderInput)
     fireEvent.change(fileInput as HTMLInputElement)
 
-    const galleryButtons = screen.getAllByRole('button', { name: /^captura \d/i })
+    const galleryButtons = await screen.findAllByRole('button', { name: /^captura \d/i })
     expect(galleryButtons).toHaveLength(2)
 
     fireEvent.click(galleryButtons[0])
