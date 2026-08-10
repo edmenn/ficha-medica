@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import RecordListItem from '@/components/records/RecordListItem'
+import MonthFilter from '@/components/records/MonthFilter'
 import { requireOperationalContext } from '@/lib/auth/guards'
 import { compareDateStringsDesc, normalizeDateString } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -65,12 +66,13 @@ export default async function RecordsPage({
     .eq('user_id', ctx.effectiveUserId)
 
   const allRecords = ((data ?? []) as SurgicalRecord[]).sort((left, right) => {
-    const byDate = compareDateStringsDesc(left.final_data.fecha_cirugia, right.final_data.fecha_cirugia)
+    const byDate = compareDateStringsDesc(left.final_data?.fecha_cirugia, right.final_data?.fecha_cirugia)
     if (byDate !== 0) return byDate
-    return right.created_at.localeCompare(left.created_at)
+    return (right.created_at ?? '').localeCompare(left.created_at ?? '')
   })
 
   const availableMonths = getAvailableMonths(allRecords)
+  const monthOptions = availableMonths.map(m => ({ value: m, label: formatMonthLabel(m) }))
   const filteredRecords = month ? allRecords.filter(r => recordMatchesMonth(r, month)) : allRecords
 
   const total = filteredRecords.length
@@ -85,24 +87,7 @@ export default async function RecordsPage({
           {total > 0 && <p className="mt-1 text-sm text-slate-500">{total} registros</p>}
         </div>
         <div className="flex items-end gap-2">
-          <div>
-            <label className="mb-1 block text-xs text-slate-500">Mes</label>
-            <form>
-              <input type="hidden" name="page" value="1" />
-              <input type="hidden" name="pageSize" value={String(pageSize)} />
-              <select
-                name="month"
-                defaultValue={month ?? ''}
-                onChange={e => e.target.form?.submit()}
-                className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-              >
-                <option value="">Todos</option>
-                {availableMonths.map(m => (
-                  <option key={m} value={m}>{formatMonthLabel(m)}</option>
-                ))}
-              </select>
-            </form>
-          </div>
+          <MonthFilter months={monthOptions} currentMonth={month} pageSize={pageSize} />
           <div>
             <label className="mb-1 block text-xs text-slate-500">Ver</label>
             <form className="flex items-center gap-2">
