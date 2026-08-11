@@ -9,8 +9,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from('surgical_records')
     .select('final_data')
-    .order('final_data->>cirujano')
-    .limit(500)
+    .eq('user_id', user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

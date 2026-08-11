@@ -1,6 +1,6 @@
 import RecordCard from '@/components/records/RecordCard'
 import { requireOperationalContext } from '@/lib/auth/guards'
-import { compareDateStringsDesc, isDateInRange } from '@/lib/record-utils'
+import { compareDateStringsDesc } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
 import { isValidImagePath } from '@/lib/storage-paths'
 import type { SurgicalRecord } from '@/types'
@@ -36,17 +36,22 @@ export default async function SearchPage({
   if ('error' in ctx) return null
 
   const service = await createServiceClient()
+
+  // Filtros duros en la base; sin corte silencioso (se pagina en memoria luego).
   let query = service
     .from('surgical_records')
     .select('*')
     .eq('user_id', ctx.effectiveUserId)
-    .limit(200)
 
   if (status) query = query.eq('status', status)
+  if (from) query = query.gte('surgical_date', from)
+  if (to) query = query.lte('surgical_date', to)
+  if (sanatorio) query = query.eq('final_data->>sanatorio', sanatorio)
+  if (cirujano) query = query.eq('final_data->>cirujano', cirujano)
 
   const [{ data }, { data: filterRows }] = await Promise.all([
     query,
-    service.from('surgical_records').select('final_data').eq('user_id', ctx.effectiveUserId).order('final_data->>cirujano').limit(500),
+    service.from('surgical_records').select('final_data').eq('user_id', ctx.effectiveUserId),
   ])
 
   const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
@@ -54,10 +59,6 @@ export default async function SearchPage({
   const selectedSanatorio = normalizeFilterValue(sanatorio)
 
   const filtered = ((data ?? []) as SurgicalRecord[]).filter(record => {
-    if ((from || to) && !isDateInRange(record.final_data?.fecha_cirugia, from, to)) {
-      return false
-    }
-
     if (selectedCirujano && normalizeFilterValue(record.final_data?.cirujano) !== selectedCirujano) {
       return false
     }
@@ -89,7 +90,7 @@ export default async function SearchPage({
     return right.created_at.localeCompare(left.created_at)
   })
 
-  const records = await Promise.all(filtered.slice(0, 50).map(async record => {
+  const records = await Promise.all(filtered.map(async record => {
     const imagePath = getPrimaryImagePath(record, ctx.effectiveUserId)
     if (!imagePath || imagePath === 'manual-entry') {
       return { ...record, image_url: null }
@@ -126,21 +127,19 @@ export default async function SearchPage({
           <div className="flex-1">
             <label className="mb-1 block text-xs text-slate-500">Desde</label>
             <input
-              type="text"
+              type="date"
               name="from"
               defaultValue={from}
-              placeholder="dd-mm-aaaa"
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
           <div className="flex-1">
             <label className="mb-1 block text-xs text-slate-500">Hasta</label>
             <input
-              type="text"
+              type="date"
               name="to"
               defaultValue={to}
-              placeholder="dd-mm-aaaa"
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
         </div>
@@ -178,6 +177,7 @@ export default async function SearchPage({
       </form>
 
       {records.length === 0 && q && <p className="py-8 text-center text-slate-500">Sin resultados</p>}
+      {records.length > 0 && <p className="mb-3 text-xs text-slate-500">{records.length} resultado{records.length !== 1 ? 's' : ''}</p>}
       {records.map(record => <RecordCard key={record.id} record={record} />)}
     </div>
   )

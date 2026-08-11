@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { buildWorkbook } from './excel'
 import { sanitizeCellValue } from './helpers'
 import type { CustomFieldTemplate, SurgicalRecord } from '@/types'
@@ -31,54 +31,59 @@ function makeRecord(overrides: Partial<SurgicalRecord['final_data']> = {}): Surg
   }
 }
 
-function readSheet(records: SurgicalRecord[], customFields: CustomFieldTemplate[] = []) {
-  const buf = buildWorkbook({ records, customFields })
-  const wb = XLSX.read(buf, { type: 'buffer' })
-  const ws = wb.Sheets[wb.SheetNames[0]]
-  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as (string | number)[][]
+async function readSheet(records: SurgicalRecord[], customFields: CustomFieldTemplate[] = []) {
+  const buf = await buildWorkbook({ records, customFields })
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(buf as unknown as Buffer)
+  const ws = wb.worksheets[0]
+  return ws
 }
 
 describe('buildWorkbook', () => {
-  it('returns a Buffer with valid xlsx magic bytes', () => {
-    const buf = buildWorkbook({ records: [makeRecord()] })
-    expect(buf).toBeInstanceOf(Buffer)
+  it('returns a Buffer with valid xlsx magic bytes', async () => {
+    const buf = await buildWorkbook({ records: [makeRecord()] })
+    expect(Buffer.isBuffer(buf)).toBe(true)
     expect(buf[0]).toBe(0x50)
     expect(buf[1]).toBe(0x4b)
   })
 
-  it('sets an autofilter on the sheet', () => {
-    const buf = buildWorkbook({ records: [makeRecord()] })
-    const wb = XLSX.read(buf, { type: 'buffer' })
-    const ws = wb.Sheets[wb.SheetNames[0]]
-    expect(ws['!autofilter']).toBeDefined()
+  it('freezes the header row and sets an autofilter', async () => {
+    const ws = await readSheet([makeRecord()])
+    const view = ws.views[0] as { state?: string; ySplit?: number }
+    expect(view.state).toBe('frozen')
+    expect(view.ySplit).toBe(1)
+    expect(ws.autoFilter).toBeDefined()
   })
 
-  it('escapes formula-injection prefixes', () => {
+  it('escapes formula-injection prefixes', async () => {
     const record = makeRecord({ observaciones: '=SUM(A1:A10)', paciente: '+2+2', procedimiento: '@cmd', diagnostico: '-1-1' })
-    const rows = readSheet([record])
-    const dataRow = rows[1]
-    const observaciones = String(dataRow[9])
-    expect(observaciones.startsWith('=')).toBe(false)
-    expect(observaciones.startsWith("'=")).toBe(true)
-    expect(String(dataRow[0]).startsWith("'+")).toBe(true)
-    expect(String(dataRow[3]).startsWith("'@")).toBe(true)
-    expect(String(dataRow[2]).startsWith("'-")).toBe(true)
+    const ws = await readSheet([record])
+    const dataRow = ws.getRow(2)
+    const get = (col: number) => String(dataRow.getCell(col).value ?? '')
+    expect(get(10).startsWith("'=")).toBe(true)
+    expect(get(1).startsWith("'+")).toBe(true)
+    expect(get(4).startsWith("'@")).toBe(true)
+    expect(get(3).startsWith("'-")).toBe(true)
   })
 
-  it('adds custom field columns dynamically', () => {
+  it('adds custom field columns dynamically', async () => {
     const record = makeRecord({ lote: 'L-42' })
     const customFields: CustomFieldTemplate[] = [
       { id: 'c1', user_id: 'u1', field_name: 'lote', field_type: 'text', is_required: false, display_order: 1 },
     ]
-    const rows = readSheet([record], customFields)
-    expect(rows[0]).toContain('lote')
-    expect(rows[1][rows[0].indexOf('lote')]).toBe('L-42')
+    const ws = await readSheet([record], customFields)
+    const headerRow = ws.getRow(1)
+    const values = (headerRow.values as unknown[]).map(v => String(v ?? ''))
+    const loteCol = values.findIndex(v => v === 'lote')
+    expect(loteCol).toBeGreaterThan(0)
+    expect(String(ws.getRow(2).getCell(loteCol).value ?? '')).toBe('L-42')
   })
 
-  it('stores metadata props', () => {
-    const buf = buildWorkbook({ records: [makeRecord()], from: '2025-01-01', to: '2025-04-30', sanatorio: 'Central' })
-    const wb = XLSX.read(buf, { type: 'buffer' })
-    expect(wb.Props?.Title).toBe('Registros Quirúrgicos')
+  it('stores workbook title metadata', async () => {
+    const buf = await buildWorkbook({ records: [makeRecord()], from: '2025-01-01', to: '2025-04-30' })
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf as unknown as Buffer)
+    expect(wb.title).toBe('Registros Quirúrgicos')
   })
 })
 

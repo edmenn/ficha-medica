@@ -1,8 +1,10 @@
 {
   "name": "Ficha Médica",
   "short_name": "FichaMed",
+  "id": "/records",
   "description": "Gestión de registros quirúrgicos",
   "start_url": "/records",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",

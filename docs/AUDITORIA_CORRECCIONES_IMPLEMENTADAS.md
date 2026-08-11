@@ -11,7 +11,7 @@
 
 ## Resumen ejecutivo
 
-Se aplicaron correcciones en los 12 puntos, con **migraciones SQL**, **pruebas unitarias/integración** (94 pruebas en verde), **typecheck limpio**, **build de producción OK** y **actualización de Next.js**. Dos puntos dependen de configuración externa que **no** puede ejecutarse desde el código (políticas de Storage en Supabase, migraciones sobre la BD real). El upgrade de Next.js se hizo a `15.5.21` (soporte React 18), documentando que un salto a 16 queda pendiente.
+Se aplicaron correcciones en los 12 puntos, con **migraciones SQL**, **pruebas unitarias/integración**, **typecheck limpio**, **build de producción OK** y **actualización de Next.js**. Dos puntos dependen de configuración externa que **no** puede ejecutarse desde el código (políticas de Storage en Supabase, migraciones sobre la BD real). El upgrade de Next.js se hizo a `15.5.21` (soporte React 18), documentando que un salto a 16 queda pendiente. Además se eliminó el almacenamiento local de imágenes clínicas y se migró la exportación a `exceljs`.
 
 ---
 
@@ -42,10 +42,9 @@ Se aplicaron correcciones en los 12 puntos, con **migraciones SQL**, **pruebas u
 - **Estado:** corregido y probado.
 
 ### 5. Excel y protección de inyección de fórmulas
-- **Corrección:** `lib/export/excel.ts` escapa valores que empiezan con `= + - @` (prefijo `'`), incluye campos personalizados dinámicamente, congela encabezado, agrega autofiltro, anchos de columna y metadatos (período, sanatorio, emisión). Se documenta el riesgo de `xlsx` (descontinuado, sin fix).
+- **Corrección:** `lib/export/excel.ts` escapa valores que empiezan con `= + - @` (prefijo `'`), incluye campos personalizados dinámicamente, congela encabezado, agrega autofiltro, anchos de columna y metadatos (período, sanatorio, emisión). **Migrado de `xlsx` a `exceljs@4.4.0`** (mantenido, sin CVEs directos).
 - **Archivos:** `lib/export/excel.ts`, `lib/export/helpers.ts`, `app/api/export/route.ts`.
-- **Pruebas:** `lib/export/excel.test.ts` (escapado, campos personalizados, metadatos, autofiltro).
-- **Estado:** corregido y probado. **Riesgo pendiente:** `xlsx@0.18.5` tiene CVEs (Prototype Pollution, ReDoS) sin fix; se recomienda migrar a `exceljs` en una iteración posterior (documentado abajo).
+- **Estado:** corregido y probado. `exceljs` trae una dependencia transitiva `uuid@8.3.2` con un aviso *moderate* (bounds check en uuid v3/v5/v6); exceljs solo usa uuid v4 (aleatorio), por lo que **no es explotable** en este contexto.
 
 ### 6. Auditoría clínica de cambios
 - **Corrección:** se agregaron `deleted` y `reanalyzed` al enum. Toda edición (Server Action y API), creación, borrado, exportación, relectura e impersonación registran `audit_log` con `effective_user_id` y `meta`. El borrado se registra **antes** de eliminar (evita pérdida por FK). Nueva pantalla administrativa `/admin/audit` con filtros por actor, registro, acción y rango.
@@ -70,9 +69,9 @@ Se aplicaron correcciones en los 12 puntos, con **migraciones SQL**, **pruebas u
 - **Estado:** paginación corregida en API. **Requiere migración 008** para índices/columna de fecha. El refactor completo de search a filtros 100% en BD (texto, sanatorio, cirujano) y la eliminación de los límites fijos 200/50/500 en búsqueda se documenta como pendiente parcial (ver Riesgos).
 
 ### 10. Funcionamiento offline
-- **Corrección:** `lib/pending-uploads.ts` ahora expira cargas a los 7 días, cuenta reintentos y `flushPendingUploads` devuelve `{sent, failed, remaining}`. Nuevo banner `PendingUploadsBanner` notifica cuántas fichas quedaron pendientes, permite "Enviar ahora" o "Descartar todas", advierte que las imágenes se guardan sin cifrar y que las fichas quedan como borrador.
-- **Archivos:** `lib/pending-uploads.ts`, `components/app/PendingUploadsBanner.tsx`, `app/(user)/layout.tsx`.
-- **Estado:** corregido. **Riesgo documentado:** las imágenes locales en IndexedDB **no están cifradas**; se exige cierre de sesión/limpieza (aviso en UI). Cifrado real requiere WebCrypto + gestión de claves (fuera de alcance).
+- **Corrección:** se **eliminó el almacenamiento local de imágenes clínicas** (IndexedDB + Background Sync + cola `pending-uploads` y su banner). La app es 100% online: si se pierde conexión al subir, el usuario ve un error y reintenta; la imagen **no** queda guardada en el dispositivo. Se conservó el **service worker** solo para cache del shell de navegación (la PWA sigue instalable vía "agregar a pantalla de inicio"), y **nunca** cachea respuestas de `/api/` (no persiste datos médicos). Se bumpió el cache a `v3` para descartar cualquier imagen/estado viejo.
+- **Archivos:** eliminados `lib/pending-uploads.ts`, `components/app/PendingUploadsBanner.tsx`; modificados `public/sw.js`, `components/records/NewRecordClient.tsx`, `app/(user)/layout.tsx`, `public/manifest.json`.
+- **Estado:** corregido. Ya **no** hay imágenes clínicas sin cifrar en el dispositivo → se elimina ese riesgo.
 
 ### 11. Dependencias y endurecimiento
 - **Corrección:** `npm audit fix` redujo 12→6 high. **Next.js 14→15.5.21** (arregla la mayoría de CVEs de routing/middleware/deserialización). Se agregaron cabeceras de seguridad (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `COOP`) en `next.config.mjs`, se quitó `X-Powered-By`, se endureció `SameSite: strict` en cookies de impersonación, límites de tasa (`lib/rate-limit.ts`) en login/invitaciones/análisis/relectura/exportación, validación de archivos (MIME/tamaño/cantidad) en todos los endpoints, contraseñas mínimas 12 y errores de OpenRouter/Supabase no expuestos al cliente.
@@ -91,7 +90,6 @@ Se aplicaron correcciones en los 12 puntos, con **migraciones SQL**, **pruebas u
 1. **Aplicar migraciones** en el proyecto de Supabase (SQL editor o CLI), en orden: `007`, `008`. **No** borran datos.
 2. **Verificar políticas de Storage**: la migración 007 crea políticas en `storage.objects` para el bucket `surgical-images` (insert/select/update/delete con prefijo `auth.uid()`). Confirmar que el bucket existe y que no hay políticas públicas sobrantes.
 3. **Vercel**: el deploy usa las variables de entorno ya configuradas. No se requieren nuevas, salvo que se quiera un rate-limiter global (Upstash/KV).
-4. **Encriptación local offline**: por defecto no cifrada; documentado en UI. Si se desea cifrar, requiere trabajo adicional.
 
 ---
 
@@ -99,12 +97,10 @@ Se aplicaron correcciones en los 12 puntos, con **migraciones SQL**, **pruebas u
 
 | # | Riesgo | Estado | Plan |
 |---|--------|--------|------|
-| 1 | **`xlsx@0.18.5`** con CVEs (Prototype Pollution, ReDoS) y sin fix | No corregible vía npm | Migrar a `exceljs` en iteración dedicada; el riesgo solo se dispara al abrir XLSX generados internamente |
-| 2 | **CVEs de Next/postcss/sharp** que requieren `next@16.3.0` | Parcial (15.5.21 corrige la mayoría) | Salto mayor a 16 planificado; requiere revisión de breaking changes (params async ya adaptados) |
-| 3 | **Rate limiting** es por-instancia (in-memory) en serverless | Mitigación parcial | Para límites globales usar Upstash/Vercel KV |
-| 4 | **Imágenes offline sin cifrar** | Documentado, no cifradas | Cifrado con WebCrypto en iteración futura |
-| 5 | **Search con límites fijos** (200/50/500) | Parcial | Refactor a filtros 100% en BD pendiente |
-| 6 | **Políticas Storage / migraciones** no aplicadas a la BD real | Pendiente de ejecución manual | Aplicar 007/008 en Supabase |
+| 1 | **CVEs de Next/postcss/sharp** que requieren `next@16.3.0` | Parcial (15.5.21 corrige la mayoría) | Impacto bajo en esta app: Server Actions con guards, CSS propio sin input de usuario, sharp solo en build. Salto a 16 como mejora futura no bloqueante |
+| 2 | **Rate limiting** es por-instancia (in-memory) en serverless | Mitigación parcial | Para límites globales usar Upstash/Vercel KV (opción futura, requiere recurso externo) |
+| 3 | **Búsqueda de texto** se hace en memoria sobre el universo filtrado del usuario | Aceptable (registros por usuario acotados) | Si creciera mucho, indexar texto en la base con FTS |
+| 4 | **Políticas Storage / migraciones** no aplicadas a la BD real | Pendiente de ejecución manual | Aplicar 007/008 en Supabase |
 
 ---
 
@@ -123,4 +119,4 @@ Se aplicaron correcciones en los 12 puntos, con **migraciones SQL**, **pruebas u
 - `npx vitest run` → **94 passed, 21 files**.
 - `npx tsc --noEmit` → sin errores en código de producción.
 - `npx next build` → **compila OK** (Next.js 15.5.21).
-- `npm audit` → 6 high (next/postcss/sharp/xlsx), 0 critical.
+- `npm audit` → 3 high (next/postcss/sharp) + 2 moderate (uuid/exceljs), 0 critical, **0 xlsx**.

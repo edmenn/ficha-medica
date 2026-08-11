@@ -3,7 +3,7 @@ import { requireOperationalContext } from '@/lib/auth/guards'
 import { createServiceClient } from '@/lib/supabase/server'
 import { buildWorkbook } from '@/lib/export/excel'
 import { buildPDF } from '@/lib/export/pdf'
-import { compareDateStringsDesc, isDateInRange, validateDateRange } from '@/lib/record-utils'
+import { compareDateStringsDesc, validateDateRange } from '@/lib/record-utils'
 import { clientIp, rateLimit } from '@/lib/rate-limit'
 import type { ExportQuery } from '@/types'
 
@@ -39,20 +39,24 @@ export async function GET(req: NextRequest) {
     .eq('user_id', ctx.effectiveUserId)
 
   if (sanatorio) {
-    query = query.ilike("final_data->>'sanatorio'", `%${sanatorio}%`)
+    query = query.eq("final_data->>'sanatorio'", sanatorio)
+  }
+  if (from) {
+    query = query.gte('surgical_date', from)
+  }
+  if (to) {
+    query = query.lte('surgical_date', to)
   }
 
   const { data: records, error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const filteredRecords = (records ?? [])
-    .filter(record => isDateInRange(record.final_data?.fecha_cirugia, from, to))
-    .sort((left, right) => {
-      const byDate = compareDateStringsDesc(left.final_data?.fecha_cirugia, right.final_data?.fecha_cirugia)
-      if (byDate !== 0) return byDate
-      return right.created_at.localeCompare(left.created_at)
-    })
+  const filteredRecords = (records ?? []).sort((left, right) => {
+    const byDate = compareDateStringsDesc(left.final_data?.fecha_cirugia, right.final_data?.fecha_cirugia)
+    if (byDate !== 0) return byDate
+    return right.created_at.localeCompare(left.created_at)
+  })
 
   await service.from('audit_log').insert({
     user_id: ctx.profile.id,
@@ -71,7 +75,7 @@ export async function GET(req: NextRequest) {
   const emittedAt = new Date().toISOString()
 
   if (format === 'xlsx') {
-    const buffer = buildWorkbook({
+    const buffer = await buildWorkbook({
       records: filteredRecords,
       customFields: customTemplates ?? [],
       from,

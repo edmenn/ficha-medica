@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import type { CustomFieldTemplate, SurgicalRecord } from '@/types'
 import { customFieldNames, sanitizeCellValue } from './helpers'
 
@@ -9,67 +9,78 @@ interface BuildWorkbookOptions {
   to?: string
   sanatorio?: string
   emittedAt?: string
-}const BASE_HEADERS = [
+}
+
+const BASE_HEADERS = [
   'Paciente', 'Fecha', 'Diagnóstico', 'Procedimiento', 'Cirujano',
   'Ayudantes', 'Anestesiólogo', 'Instrumentador', 'Sanatorio', 'Observaciones', 'Creado',
 ]
 
-export function buildWorkbook({
+export async function buildWorkbook({
   records,
   customFields = [],
   from,
   to,
   sanatorio,
   emittedAt,
-}: BuildWorkbookOptions): Buffer {
+}: BuildWorkbookOptions): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'Ficha Médica'
+  workbook.created = new Date()
+
   const extraHeaders = customFieldNames(records, customFields)
   const headers = [...BASE_HEADERS, ...extraHeaders]
 
-  const rows = records.map(r => {
-    const f = r.final_data ?? {}
-    const base = [
-      sanitizeCellValue(f.paciente),
-      sanitizeCellValue(f.fecha_cirugia),
-      sanitizeCellValue(f.diagnostico),
-      sanitizeCellValue(f.procedimiento),
-      sanitizeCellValue(f.cirujano),
-      sanitizeCellValue(f.ayudantes),
-      sanitizeCellValue(f.anestesiologo),
-      sanitizeCellValue(f.instrumentador),
-      sanitizeCellValue(f.sanatorio),
-      sanitizeCellValue(f.observaciones),
-      sanitizeCellValue(new Date(r.created_at).toLocaleDateString('es-AR')),
-    ]
-    const extras = extraHeaders.map(key => sanitizeCellValue(f[key]))
-    return [...base, ...extras]
+  const worksheet = workbook.addWorksheet('Registros quirúrgicos', {
+    views: [{ state: 'frozen', ySplit: 1 }],
   })
 
-  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
-
-  // Freeze the header row and add auto-filter.
-  ws['!freeze'] = { xSplit: 0, ySplit: 1 }
-  ws['!autofilter'] = { ref: `A1:${XLSX.utils.encode_cell({ r: 0, c: headers.length - 1 })}1` }
-
-  ws['!cols'] = headers.map((header, i) => ({
-    wch: i === 0 ? 28 : header === 'Observaciones' ? 50 : 20,
+  worksheet.columns = headers.map((header, i) => ({
+    header,
+    key: header,
+    width: i === 0 ? 28 : header === 'Observaciones' ? 50 : 20,
   }))
 
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Registros quirúrgicos')
-
-  const metaParts = [
-    from && `Desde:${from}`,
-    to && `Hasta:${to}`,
-    sanatorio && `Sanatorio:${sanatorio}`,
-    emittedAt && `Emitido:${emittedAt}`,
-  ].filter(Boolean).join(' | ')
-
-  wb.Workbook = { Views: [] }
-  wb.Props = {
-    Title: 'Registros Quirúrgicos',
-    Subject: metaParts || 'Reporte clínico',
-    CreatedDate: new Date(),
+  for (const r of records) {
+    const f = r.final_data ?? {}
+    const row: Record<string, string> = {}
+    BASE_HEADERS.forEach((header, i) => {
+      const values = [
+        f.paciente, f.fecha_cirugia, f.diagnostico, f.procedimiento, f.cirujano,
+        f.ayudantes, f.anestesiologo, f.instrumentador, f.sanatorio, f.observaciones,
+        new Date(r.created_at).toLocaleDateString('es-AR'),
+      ]
+      row[header] = sanitizeCellValue(values[i])
+    })
+    extraHeaders.forEach(key => {
+      row[key] = sanitizeCellValue(f[key])
+    })
+    worksheet.addRow(row)
   }
 
-  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+  // Autofiltro sobre el rango de datos.
+  const lastRow = worksheet.rowCount
+  if (lastRow >= 1) {
+    worksheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: Math.max(1, lastRow), column: headers.length },
+    }
+  }
+
+  // Formato de fecha (dd-mm-yyyy) en la columna "Fecha" (columna 2).
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber > 1) {
+      const cell = row.getCell(2)
+      cell.numFmt = 'dd-mm-yyyy'
+    }
+  })
+
+  // Metadatos del reporte en las propiedades del documento.
+  workbook.subject = [from && `Desde:${from}`, to && `Hasta:${to}`, sanatorio && `Sanatorio:${sanatorio}`, emittedAt && `Emitido:${emittedAt}`]
+    .filter(Boolean)
+    .join(' | ') || 'Reporte clínico'
+  workbook.title = 'Registros Quirúrgicos'
+
+  const buffer = await workbook.xlsx.writeBuffer()
+  return Buffer.from(buffer as unknown as ArrayBuffer) as Buffer
 }

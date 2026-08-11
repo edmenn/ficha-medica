@@ -20,8 +20,6 @@ export async function GET(req: NextRequest) {
     .from('surgical_records')
     .select('final_data')
     .eq('user_id', ctx.effectiveUserId)
-    .order('created_at', { ascending: false })
-    .limit(250)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

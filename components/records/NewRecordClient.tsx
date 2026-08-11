@@ -8,7 +8,6 @@ import { updateRecordAction } from '@/app/(user)/records/[id]/actions'
 import RecordForm from '@/components/records/RecordForm'
 import BackToRecordsButton from '@/components/ui/BackToRecordsButton'
 import { prepareImageForUpload } from '@/lib/imageUtils'
-import { flushPendingUploads, savePendingUpload } from '@/lib/pending-uploads'
 import { emptySurgicalFields } from '@/lib/record-utils'
 import type { AnalyzeResponse, CustomFieldTemplate, SurgicalFields, SurgicalRecord } from '@/types'
 
@@ -37,29 +36,6 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
       .then(data => setCustomFields(data.fields ?? []))
   }, [])
 
-  useEffect(() => {
-    function handleOnline() {
-      void flushPendingUploads()
-    }
-
-    window.addEventListener('online', handleOnline)
-    return () => window.removeEventListener('online', handleOnline)
-  }, [])
-
-  async function queuePendingUpload(file: File) {
-    await savePendingUpload(file, null)
-
-    if ('serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready
-      const syncRegistration = registration as ServiceWorkerRegistration & {
-        sync?: { register: (tag: string) => Promise<void> }
-      }
-      if (syncRegistration.sync) {
-        await syncRegistration.sync.register('upload-pending')
-      }
-    }
-  }
-
   async function analyzePreparedFile(prepared: File, options?: { recordId?: string; confirmDuplicate?: boolean }) {
     const form = new FormData()
     form.append('image', prepared)
@@ -74,12 +50,7 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
       res = await fetch('/api/analyze', { method: 'POST', body: form, signal: controller.signal })
     } catch (err) {
       const isTimeout = err instanceof Error && err.name === 'AbortError'
-      if (isTimeout || !navigator.onLine) {
-        await queuePendingUpload(prepared)
-        setError('Sin conexión. La ficha se enviará cuando vuelva la señal.')
-      } else {
-        setError('Error de conexión')
-      }
+      setError(isTimeout ? 'La solicitud tardó demasiado. Intentá de nuevo.' : 'Sin conexión. Intentá de nuevo.')
       if (!options?.recordId) setStep('capture')
       return
     } finally {
@@ -90,8 +61,7 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
 
     if (!res.ok) {
       if (res.status === 503) {
-        await queuePendingUpload(prepared)
-        setError('Sin conexión. La ficha se enviará cuando vuelva la señal.')
+        setError('Sin conexión. Intentá de nuevo cuando vuelva la señal.')
         if (!options?.recordId) setStep('capture')
         return
       }
