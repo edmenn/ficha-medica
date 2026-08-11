@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import AdminRecordDetailPage from '@/components/admin/AdminRecordDetailPage'
 import { requireAdmin } from '@/lib/auth/guards'
 import { createServiceClient } from '@/lib/supabase/server'
+import { isValidImagePath } from '@/lib/storage-paths'
 import type { SurgicalRecord } from '@/types'
 
 function getImagePaths(record: { image_paths?: string[] | null; image_path?: string | null }) {
@@ -13,8 +14,9 @@ function getImagePaths(record: { image_paths?: string[] | null; image_path?: str
 export default async function AdminRecordPage({
   params,
 }: {
-  params: { id: string; recordId: string }
+  params: Promise<{ id: string; recordId: string }>
 }) {
+  const { id, recordId } = await params
   await requireAdmin()
 
   const service = await createServiceClient()
@@ -22,13 +24,13 @@ export default async function AdminRecordPage({
     service
       .from('surgical_records')
       .select('*')
-      .eq('id', params.recordId)
-      .eq('user_id', params.id)
+      .eq('id', recordId)
+      .eq('user_id', id)
       .maybeSingle(),
     service
       .from('custom_field_templates')
       .select('*')
-      .eq('user_id', params.id)
+      .eq('user_id', id)
       .order('display_order'),
   ])
 
@@ -36,7 +38,7 @@ export default async function AdminRecordPage({
     notFound()
   }
 
-  const imagePaths = getImagePaths(record)
+  const imagePaths = getImagePaths(record).filter(path => isValidImagePath(path, id))
   let imageUrls: string[] = []
   if (imagePaths.length > 0 && imagePaths[0] !== 'manual-entry') {
     imageUrls = (await Promise.all(imagePaths.map(async imagePath => {
@@ -49,7 +51,7 @@ export default async function AdminRecordPage({
 
   return (
     <AdminRecordDetailPage
-      userId={params.id}
+      userId={id}
       record={{
         ...(record as SurgicalRecord),
         image_url: imageUrls[0] ?? null,

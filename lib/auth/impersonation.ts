@@ -12,7 +12,7 @@ export interface ImpersonationSession {
 }
 
 export async function getActiveImpersonation(): Promise<ImpersonationSession | null> {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const sessionId = cookieStore.get(IMPERSONATION_COOKIE)?.value
   if (!sessionId) return null
 

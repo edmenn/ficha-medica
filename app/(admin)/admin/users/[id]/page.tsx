@@ -5,7 +5,8 @@ import { compareDateStringsDesc } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { SurgicalRecord } from '@/types'
 
-export default async function AdminUserPage({ params }: { params: { id: string } }) {
+export default async function AdminUserPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   await requireAdmin()
 
   const service = await createServiceClient()
@@ -13,12 +14,12 @@ export default async function AdminUserPage({ params }: { params: { id: string }
     service
       .from('users')
       .select('id, email, role, is_active, created_at')
-      .eq('id', params.id)
+      .eq('id', id)
       .maybeSingle(),
     service
       .from('surgical_records')
       .select('*')
-      .eq('user_id', params.id),
+      .eq('user_id', id),
   ])
 
   if (!user) {

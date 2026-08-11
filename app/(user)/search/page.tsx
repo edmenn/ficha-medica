@@ -2,6 +2,7 @@ import RecordCard from '@/components/records/RecordCard'
 import { requireOperationalContext } from '@/lib/auth/guards'
 import { compareDateStringsDesc, isDateInRange } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
+import { isValidImagePath } from '@/lib/storage-paths'
 import type { SurgicalRecord } from '@/types'
 
 function normalizeFilterValue(value: string | null | undefined): string {
@@ -12,21 +13,24 @@ function normalizeFilterValue(value: string | null | undefined): string {
     .toLowerCase()
 }
 
-function getPrimaryImagePath(record: { image_paths?: string[] | null; image_path?: string | null }) {
-  return record.image_paths?.[0] ?? record.image_path ?? null
+function getPrimaryImagePath(record: { image_paths?: string[] | null; image_path?: string | null }, userId: string) {
+  const paths = record.image_paths?.length ? record.image_paths : record.image_path ? [record.image_path] : []
+  const valid = paths.filter(path => isValidImagePath(path, userId))
+  return valid[0] ?? null
 }
 
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams?: { q?: string; from?: string; to?: string; sanatorio?: string; cirujano?: string; status?: string }
+  searchParams?: Promise<{ q?: string; from?: string; to?: string; sanatorio?: string; cirujano?: string; status?: string }>
 }) {
-  const q = searchParams?.q ?? ''
-  const from = searchParams?.from ?? ''
-  const to = searchParams?.to ?? ''
-  const sanatorio = searchParams?.sanatorio ?? ''
-  const cirujano = searchParams?.cirujano ?? ''
-  const status = searchParams?.status ?? ''
+  const sp = await searchParams
+  const q = sp?.q ?? ''
+  const from = sp?.from ?? ''
+  const to = sp?.to ?? ''
+  const sanatorio = sp?.sanatorio ?? ''
+  const cirujano = sp?.cirujano ?? ''
+  const status = sp?.status ?? ''
 
   const ctx = await requireOperationalContext()
   if ('error' in ctx) return null
@@ -86,7 +90,7 @@ export default async function SearchPage({
   })
 
   const records = await Promise.all(filtered.slice(0, 50).map(async record => {
-    const imagePath = getPrimaryImagePath(record)
+    const imagePath = getPrimaryImagePath(record, ctx.effectiveUserId)
     if (!imagePath || imagePath === 'manual-entry') {
       return { ...record, image_url: null }
     }

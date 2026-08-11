@@ -1,12 +1,14 @@
 import { redirect } from 'next/navigation'
 import BottomNav from '@/components/ui/BottomNav'
 import ImpersonationBanner from '@/components/admin/impersonation/ImpersonationBanner'
+import PendingUploadsBanner from '@/components/app/PendingUploadsBanner'
 import { getCurrentUserProfile } from '@/lib/auth'
 import { getActiveImpersonation } from '@/lib/auth/impersonation'
 
 export default async function UserLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentUserProfile()
   if (!profile) redirect('/login')
+  if (profile.is_active === false) redirect('/login?inactive=1')
   if (profile.role === 'admin') {
     const impersonation = await getActiveImpersonation()
     if (!impersonation || impersonation.admin_id !== profile.id) redirect('/admin')
@@ -15,7 +17,10 @@ export default async function UserLayout({ children }: { children: React.ReactNo
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <ImpersonationBanner />
-      <main className="pb-20 mx-auto px-4 pt-14 max-w-lg">{children}</main>
+      <main className="pb-20 mx-auto px-4 pt-14 max-w-lg">
+        <PendingUploadsBanner />
+        {children}
+      </main>
       <BottomNav />
     </div>
   )

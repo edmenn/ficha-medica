@@ -1,6 +1,15 @@
 import type { SurgicalFields } from '@/types'
+import { normalizeDateString, validateDateField } from '@/lib/dates'
 
-const DATE_RE = /^(\d{1,4})[\/.\-](\d{1,2})[\/.\-](\d{1,4})$/
+export {
+  normalizeDateString,
+  validateDateField,
+  compareDateStringsDesc,
+  isDateInRange,
+  dateToISO,
+  isoToDate,
+  validateDateRange,
+} from '@/lib/dates'
 
 export const STANDARD_FIELD_ORDER: (keyof SurgicalFields)[] = [
   'paciente',
@@ -35,63 +44,6 @@ function normalizeText(value: unknown): string | null {
   return null
 }
 
-export function normalizeDateString(value: string | null): string | null {
-  if (!value) return null
-  const cleaned = value
-    .trim()
-    .replace(/\s+/g, '')
-    .replace(/[.,]/g, match => (match === '.' ? '-' : match))
-    .replace(/[–—]/g, '-')
-    .replace(/\//g, '-')
-
-  const match = cleaned.match(DATE_RE)
-  if (!match) return cleaned
-
-  const first = Number(match[1])
-  const second = Number(match[2])
-  const third = Number(match[3])
-
-  if ([first, second, third].some(Number.isNaN)) return cleaned
-
-  if (match[1].length === 4) {
-    const year = first
-    const month = second
-    const day = third
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      return `${day.toString().padStart(2, '0')}-${month.toString().padStart(2, '0')}-${year.toString().padStart(4, '0')}`
-    }
-  }
-
-  const day = first
-  const month = second
-  let year = third
-  if (match[3].length <= 2) {
-    year += 2000
-  }
-
-  if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
-    return `${day.toString().padStart(2, '0')}-${month.toString().padStart(2, '0')}-${year.toString().padStart(4, '0')}`
-  }
-
-  return cleaned
-}
-
-function parseDateToTimestamp(value: string | null | undefined): number | null {
-  if (!value) return null
-  const normalized = normalizeDateString(value)
-  if (!normalized) return null
-
-  const match = normalized.match(/^(\d{2})-(\d{2})-(\d{4})$/)
-  if (!match) return null
-
-  const day = Number(match[1])
-  const month = Number(match[2])
-  const year = Number(match[3])
-  if ([day, month, year].some(Number.isNaN)) return null
-  const date = new Date(Date.UTC(year, month - 1, day))
-  return Number.isNaN(date.getTime()) ? null : date.getTime()
-}
-
 export function normalizeSurgicalFields(input: Partial<SurgicalFields>): SurgicalFields {
   const normalized = emptySurgicalFields()
 
@@ -119,37 +71,23 @@ export function mergeSurgicalFieldsFillNulls(base: SurgicalFields, incoming: Sur
 
 export function validateSurgicalFields(fields: SurgicalFields): string[] {
   const errors: string[] = []
-  if (fields.fecha_cirugia) {
-    const normalized = normalizeDateString(fields.fecha_cirugia)
-    if (!normalized || !normalized.match(/^\d{2}-\d{2}-\d{4}$/)) {
-      errors.push('La fecha debe estar en formato dd-mm-aaaa')
-    }
-  }
+  const dateError = validateDateField(fields.fecha_cirugia)
+  if (dateError) errors.push(dateError)
   return errors
 }
 
-export function compareDateStringsDesc(left: string | null | undefined, right: string | null | undefined) {
-  const leftTs = parseDateToTimestamp(left)
-  const rightTs = parseDateToTimestamp(right)
-  if (leftTs === null && rightTs === null) return 0
-  if (leftTs === null) return 1
-  if (rightTs === null) return -1
-  return rightTs - leftTs
-}
-
-export function isDateInRange(
-  value: string | null | undefined,
-  from: string | null | undefined,
-  to: string | null | undefined
-) {
-  const valueTs = parseDateToTimestamp(value)
-  if (valueTs === null) return false
-
-  const fromTs = parseDateToTimestamp(from)
-  if (fromTs !== null && valueTs < fromTs) return false
-
-  const toTs = parseDateToTimestamp(to)
-  if (toTs !== null && valueTs > toTs) return false
-
-  return true
+// Validate required custom fields. `requiredNames` is the set of field names
+// flagged as is_required in the user's templates.
+export function validateRequiredFields(
+  fields: SurgicalFields,
+  requiredNames: string[]
+): string[] {
+  const errors: string[] = []
+  for (const name of requiredNames) {
+    const value = fields[name]
+    if (value === null || value === undefined || String(value).trim() === '') {
+      errors.push(`El campo "${name}" es obligatorio`)
+    }
+  }
+  return errors
 }

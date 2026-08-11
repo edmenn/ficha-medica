@@ -40,8 +40,8 @@ export async function POST(req: Request) {
   const password = body.password?.trim()
   const role = body.role === 'admin' ? 'admin' : 'user'
 
-  if (!email || !password || password.length < 8) {
-    return NextResponse.json({ error: 'Email y contraseña válida son obligatorios' }, { status: 400 })
+  if (!email || !password || password.length < 12) {
+    return NextResponse.json({ error: 'Email y contraseña válida (mínimo 12 caracteres) son obligatorios' }, { status: 400 })
   }
 
   const service = await createServiceClient()

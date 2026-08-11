@@ -1,7 +1,9 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import type { UserProfile, UserRole } from '@/types'
 
-export async function getCurrentUserProfile(): Promise<Pick<UserProfile, 'id' | 'email' | 'role' | 'preferred_model'> | null> {
+export type AuthProfile = Pick<UserProfile, 'id' | 'email' | 'role' | 'preferred_model' | 'is_active'>
+
+export async function getCurrentUserProfile(): Promise<AuthProfile | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -9,7 +11,7 @@ export async function getCurrentUserProfile(): Promise<Pick<UserProfile, 'id' | 
   const service = await createServiceClient()
   const { data } = await service
     .from('users')
-    .select('id, email, role, preferred_model')
+    .select('id, email, role, preferred_model, is_active')
     .eq('id', user.id)
     .maybeSingle()
 

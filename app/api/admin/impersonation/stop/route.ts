@@ -9,7 +9,8 @@ export async function POST() {
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const session = await getActiveImpersonation()
-  cookies().delete(IMPERSONATION_COOKIE)
+  const cookieStore = await cookies()
+  cookieStore.delete(IMPERSONATION_COOKIE)
 
   if (session && session.admin_id === auth.profile.id) {
     const service = await createServiceClient()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -11,18 +11,36 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('inactive') === '1') {
+      setError('Tu cuenta fue desactivada. Contactá al administrador.')
+    }
+  }, [])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setError('Email o contraseña incorrectos')
       setLoading(false)
       return
     }
-    router.push('/records')
+
+    const { data: profile } = await supabase.from('users').select('role, is_active').eq('id', data.user.id).maybeSingle()
+
+    if (!profile || profile.is_active === false) {
+      await supabase.auth.signOut()
+      setError('Tu cuenta fue desactivada. Contactá al administrador.')
+      setLoading(false)
+      return
+    }
+
+    const path = profile.role === 'admin' ? '/admin' : '/records'
+    router.push(path)
     router.refresh()
   }
 

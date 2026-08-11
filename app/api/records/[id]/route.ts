@@ -3,6 +3,7 @@ import { requireOperationalContext } from '@/lib/auth/guards'
 import { selectRecordImagePaths } from '@/lib/records-db'
 import { normalizeSurgicalFields, validateSurgicalFields } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
+import { filterValidImagePaths, isValidImagePath } from '@/lib/storage-paths'
 import type { RecordStatus, SurgicalFields } from '@/types'
 
 function getImagePaths(record: { image_paths?: string[] | null; image_path?: string | null }) {
@@ -11,7 +12,8 @@ function getImagePaths(record: { image_paths?: string[] | null; image_path?: str
   return []
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const ctx = await requireOperationalContext()
   if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
@@ -19,13 +21,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const { data, error } = await service
     .from('surgical_records')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', ctx.effectiveUserId)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 404 })
 
-  const imagePaths = getImagePaths(data)
+  const imagePaths = getImagePaths(data).filter(path => isValidImagePath(path, ctx.effectiveUserId))
   if (imagePaths.length === 0 || imagePaths[0] === 'manual-entry') {
     return NextResponse.json({ ...data, image_url: null, image_urls: [] })
   }
@@ -44,7 +46,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   })
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const ctx = await requireOperationalContext()
   if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
@@ -62,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { data: current } = await service
     .from('surgical_records')
     .select('final_data')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', ctx.effectiveUserId)
     .single()
 
@@ -75,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { data, error } = await service
     .from('surgical_records')
     .update(payload)
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', ctx.effectiveUserId)
     .select()
     .single()
@@ -95,9 +98,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (Object.keys(diff).length > 0) {
       const { error: auditError } = await service.from('audit_log').insert({
         user_id: ctx.profile.id,
-        record_id: params.id,
+        effective_user_id: ctx.profile.id === ctx.effectiveUserId ? null : ctx.effectiveUserId,
+        record_id: id,
         action: 'edited',
-        diff,
+        diff: {
+          previous: previous,
+          current: normalizedFinalData,
+        },
       })
       if (auditError) console.error('[audit_log insert]', auditError.message)
     }
@@ -106,23 +113,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json(data)
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const ctx = await requireOperationalContext()
   if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
   const service = await createServiceClient()
-  const { data: record } = await selectRecordImagePaths(service, params.id, ctx.effectiveUserId)
+  const { data: record } = await selectRecordImagePaths(service, id, ctx.effectiveUserId)
+
+  const removablePaths = filterValidImagePaths(getImagePaths(record ?? {}), ctx.effectiveUserId)
 
   const { error } = await service
     .from('surgical_records')
     .delete()
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', ctx.effectiveUserId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const imagePaths = getImagePaths(record ?? {})
-  const removablePaths = imagePaths.filter(path => path !== 'manual-entry')
   if (removablePaths.length > 0) {
     await service.storage.from('surgical-images').remove(removablePaths)
   }

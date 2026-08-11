@@ -1,12 +1,13 @@
 export type UserRole = 'admin' | 'user'
 export type RecordStatus = 'draft' | 'reviewed' | 'final'
-export type AuditAction = 'created' | 'edited' | 'exported' | 'impersonation_started' | 'impersonation_ended'
+export type AuditAction = 'created' | 'edited' | 'deleted' | 'exported' | 'reanalyzed' | 'impersonation_started' | 'impersonation_ended'
 export type FieldType = 'text' | 'number' | 'date' | 'bool'
 
 export interface UserProfile {
   id: string
   email: string
   role: UserRole
+  is_active: boolean
   openrouter_key: string | null  // AES-256 encrypted ciphertext
   preferred_model: string | null
   created_at: string

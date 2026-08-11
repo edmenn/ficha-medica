@@ -36,6 +36,8 @@ export default function RecordForm({
       .filter(fieldName => !STANDARD_FIELD_ORDER.includes(fieldName as keyof SurgicalFields)),
   ]
 
+  const customFieldMap = new Map(customFields.map(field => [field.field_name, field]))
+
   return (
     <div>
       {errors.length > 0 && (
@@ -43,15 +45,22 @@ export default function RecordForm({
           {errors.map(error => <p key={error}>{error}</p>)}
         </div>
       )}
-      {orderedFields.map(key => (
-        <FieldRow
-          key={key}
-          fieldName={key}
-          value={fields[key as keyof SurgicalFields] ?? ''}
-          aiValue={extractedFields[key as keyof SurgicalFields] ?? null}
-          onChange={value => handleChange(key, value)}
-        />
-      ))}
+      {orderedFields.map(key => {
+        const template = customFieldMap.get(key)
+        const fieldType = key === 'fecha_cirugia' ? 'date' : template?.field_type ?? 'text'
+        return (
+          <FieldRow
+            key={key}
+            fieldName={key}
+            value={fields[key as keyof SurgicalFields] ?? ''}
+            aiValue={extractedFields[key as keyof SurgicalFields] ?? null}
+            onChange={value => handleChange(key, value)}
+            readOnly={readOnly}
+            fieldType={fieldType}
+            isRequired={key === 'fecha_cirugia' ? false : Boolean(template?.is_required)}
+          />
+        )
+      })}
       {!readOnly && (
         <button
           onClick={onSave}

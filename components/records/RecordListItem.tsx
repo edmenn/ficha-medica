@@ -12,7 +12,7 @@ const STATUS_LABELS: Record<SurgicalRecord['status'], string> = {
 }
 
 function formatDate(record: SurgicalRecord) {
-  return record.final_data.fecha_cirugia
+  return record.final_data?.fecha_cirugia
     ?? new Date(record.created_at).toLocaleDateString('es-AR', {
       day: '2-digit',
       month: '2-digit',
@@ -21,7 +21,7 @@ function formatDate(record: SurgicalRecord) {
 }
 
 export default function RecordListItem({ record }: Props) {
-  const f = record.final_data
+  const f = record.final_data ?? {}
 
   return (
     <Link href={`/records/${record.id}`} className="block">

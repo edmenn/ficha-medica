@@ -7,10 +7,12 @@ import { buildExtractionPrompt, createOpenRouterClient, MODELS_WITH_JSON_MODE } 
 import { findRecordBySourceImageHash, insertSurgicalRecord, selectRecordForMerge, updateMergedRecord } from '@/lib/records-db'
 import { mergeSurgicalFieldsFillNulls, normalizeSurgicalFields } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
+import { clientIp, rateLimit } from '@/lib/rate-limit'
 import type { AnalyzeResponse, SurgicalFields } from '@/types'
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'])
 const MAX_SIZE_BYTES = 10 * 1024 * 1024
+const MAX_IMAGES_PER_REQUEST = 2
 
 function safeImagePath(userId: string, mimeType: string): string {
   const ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg').replace('heif', 'heic') ?? 'jpg'
@@ -63,6 +65,11 @@ export async function POST(req: NextRequest) {
   const ctx = await requireOperationalContext()
   if ('error' in ctx) return NextResponse.json({ error: ctx.error }, { status: ctx.status })
 
+  const limiter = rateLimit(`analyze:${clientIp(req)}:${ctx.effectiveUserId}`, { limit: 20, windowMs: 60 * 1000 })
+  if (!limiter.allowed) {
+    return NextResponse.json({ error: 'Demasiadas solicitudes. Intentá de nuevo en un momento.' }, { status: 429 })
+  }
+
   const service = await createServiceClient()
 
   const formData = await req.formData()
@@ -70,6 +77,11 @@ export async function POST(req: NextRequest) {
   const rotatedImageFile = formData.get('image_rotated') as File | null
   const existingRecordId = formData.get('record_id')?.toString() ?? null
   const confirmDuplicate = formData.get('confirm_duplicate') === '1'
+
+  const providedImages = [imageFile, rotatedImageFile].filter(Boolean).length
+  if (providedImages > MAX_IMAGES_PER_REQUEST) {
+    return NextResponse.json({ error: 'Demasiadas imágenes en una sola solicitud' }, { status: 400 })
+  }
 
   const imageError = validateImageFile(imageFile)
   if (imageError) return NextResponse.json({ error: imageError }, { status: 400 })
@@ -157,11 +169,11 @@ export async function POST(req: NextRequest) {
     })
     rawResponse = completion.choices[0]?.message?.content ?? ''
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Error al analizar imagen'
+    console.error('[analyze] OpenRouter error:', err instanceof Error ? err.message : err)
     await service.storage.from('surgical-images').remove(
       [primaryUpload.path, rotatedUpload?.path].filter(Boolean) as string[]
     )
-    return NextResponse.json({ error: message }, { status: 502 })
+    return NextResponse.json({ error: 'No se pudo analizar la imagen con la IA. Intentá de nuevo.' }, { status: 502 })
   } finally {
     if (rotatedUpload) {
       await service.storage.from('surgical-images').remove([rotatedUpload.path])
@@ -249,6 +261,7 @@ export async function POST(req: NextRequest) {
 
   const { error: auditError } = await service.from('audit_log').insert({
     user_id: ctx.profile.id,
+    effective_user_id: ctx.profile.id === ctx.effectiveUserId ? null : ctx.effectiveUserId,
     record_id: record.id,
     action: 'created',
     diff: fields,

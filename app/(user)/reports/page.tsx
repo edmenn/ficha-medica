@@ -45,13 +45,14 @@ function buildReportQuery(from: string, to: string, sanatorio: string) {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams?: { from?: string; to?: string; sanatorio?: string }
+  searchParams?: Promise<{ from?: string; to?: string; sanatorio?: string }>
 }) {
+  const sp = await searchParams
   const defaults = getDefaultRange()
-  const from = searchParams?.from ?? defaults.from
-  const to = searchParams?.to ?? defaults.to
-  const sanatorio = searchParams?.sanatorio ?? ''
-  const searched = Boolean(searchParams?.from || searchParams?.to || searchParams?.sanatorio)
+  const from = sp?.from ?? defaults.from
+  const to = sp?.to ?? defaults.to
+  const sanatorio = sp?.sanatorio ?? ''
+  const searched = Boolean(sp?.from || sp?.to || sp?.sanatorio)
 
   const ctx = await requireOperationalContext()
   if ('error' in ctx) return null

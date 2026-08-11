@@ -30,6 +30,9 @@ export default function SettingsPageClient({
   const [saved, setSaved] = useState(false)
   const [customFields, setCustomFields] = useState(initialCustomFields)
   const [newFieldName, setNewFieldName] = useState('')
+  const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date' | 'bool'>('text')
+  const [newFieldRequired, setNewFieldRequired] = useState(false)
+  const [customFieldError, setCustomFieldError] = useState<string | null>(null)
   const [models, setModels] = useState<OpenRouterModelOption[]>([])
   const [modelsLoaded, setModelsLoaded] = useState(false)
   const [modelsError, setModelsError] = useState<string | null>(null)
@@ -54,20 +57,45 @@ export default function SettingsPageClient({
   }
 
   async function addField() {
+    setCustomFieldError(null)
     if (!newFieldName.trim()) return
     const res = await fetch('/api/custom-fields', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ field_name: newFieldName.trim(), field_type: 'text' }),
+      body: JSON.stringify({
+        field_name: newFieldName.trim(),
+        field_type: newFieldType,
+        is_required: newFieldRequired,
+      }),
     })
+    const data = await res.json()
     if (res.ok) {
-      const data = await res.json()
       setCustomFields(prev => [...prev, data])
       setNewFieldName('')
+      setNewFieldType('text')
+      setNewFieldRequired(false)
+    } else {
+      setCustomFieldError(data.error ?? 'No se pudo agregar el campo')
+    }
+  }
+
+  async function updateField(id: string, patch: Partial<CustomFieldTemplate>) {
+    setCustomFieldError(null)
+    const res = await fetch(`/api/custom-fields/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setCustomFields(prev => prev.map(field => field.id === id ? data : field))
+    } else {
+      setCustomFieldError(data.error ?? 'No se pudo actualizar el campo')
     }
   }
 
   async function removeField(id: string) {
+    setCustomFieldError(null)
     await fetch(`/api/custom-fields/${id}`, { method: 'DELETE' })
     setCustomFields(prev => prev.filter(field => field.id !== id))
   }
@@ -220,33 +248,79 @@ export default function SettingsPageClient({
 
       {showCustomFields && <div className="mt-8">
         <h2 className="mb-3 text-sm font-semibold text-slate-400">Campos personalizados</h2>
-        <div className="mb-3 flex gap-2">
+        <div className="mb-3 rounded-xl border border-slate-700 bg-slate-900/50 p-3">
           <input
             type="text"
             value={newFieldName}
             onChange={e => setNewFieldName(e.target.value)}
             placeholder="Nombre del campo"
-            className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+            className="mb-2 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
           />
+          <div className="mb-2 flex items-center gap-2">
+            <label className="text-xs text-slate-400">Tipo:</label>
+            <select
+              value={newFieldType}
+              onChange={e => setNewFieldType(e.target.value as 'text' | 'number' | 'date' | 'bool')}
+              className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm text-white"
+            >
+              <option value="text">Texto</option>
+              <option value="number">Número</option>
+              <option value="date">Fecha</option>
+              <option value="bool">Sí/No</option>
+            </select>
+          </div>
+          <label className="mb-3 flex items-center gap-2 text-xs text-slate-400">
+            <input
+              type="checkbox"
+              checked={newFieldRequired}
+              onChange={e => setNewFieldRequired(e.target.checked)}
+              className="accent-blue-500"
+            />
+            Obligatorio
+          </label>
           <button
             type="button"
             onClick={addField}
-            className="rounded-lg bg-slate-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-600"
+            className="w-full rounded-lg bg-slate-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-600"
           >
             Agregar
           </button>
         </div>
+        {customFieldError && <p className="mb-2 text-xs text-red-400">{customFieldError}</p>}
         <div className="space-y-2">
           {customFields.map(field => (
-            <div key={field.id} className="flex items-center justify-between rounded-xl bg-slate-800 p-3">
-              <span className="text-sm text-white">{field.field_name}</span>
-              <button
-                type="button"
-                onClick={() => removeField(field.id)}
-                className="text-xs text-red-400"
-              >
-                Quitar
-              </button>
+            <div key={field.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-800 p-3">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="truncate text-sm text-white">{field.field_name}</span>
+                <select
+                  value={field.field_type}
+                  onChange={e => updateField(field.id, { field_type: e.target.value as 'text' | 'number' | 'date' | 'bool' })}
+                  className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300"
+                >
+                  <option value="text">Texto</option>
+                  <option value="number">Número</option>
+                  <option value="date">Fecha</option>
+                  <option value="bool">Sí/No</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(field.is_required)}
+                    onChange={e => updateField(field.id, { is_required: e.target.checked })}
+                    className="accent-blue-500"
+                  />
+                  Oblig.
+                </label>
+                <button
+                  type="button"
+                  onClick={() => removeField(field.id)}
+                  className="text-xs text-red-400"
+                >
+                  Quitar
+                </button>
+              </div>
             </div>
           ))}
           {customFields.length === 0 && (

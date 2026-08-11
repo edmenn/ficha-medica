@@ -47,13 +47,14 @@ function formatMonthLabel(month: string): string {
 export default async function RecordsPage({
   searchParams,
 }: {
-  searchParams?: { page?: string; pageSize?: string; month?: string }
+  searchParams?: Promise<{ page?: string; pageSize?: string; month?: string }>
 }) {
-  const rawPage = Number.parseInt(searchParams?.page ?? '1', 10)
+  const sp = await searchParams
+  const rawPage = Number.parseInt(sp?.page ?? '1', 10)
   const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1
-  const rawPageSize = Number.parseInt(searchParams?.pageSize ?? '20', 10)
+  const rawPageSize = Number.parseInt(sp?.pageSize ?? '20', 10)
   const pageSize = PAGE_SIZE_OPTIONS.includes(rawPageSize) ? rawPageSize : 20
-  const month = searchParams?.month || undefined
+  const month = sp?.month || undefined
   const offset = (page - 1) * pageSize
 
   const ctx = await requireOperationalContext()

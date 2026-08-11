@@ -41,10 +41,11 @@ export async function POST(req: NextRequest) {
     diff: { target_user_id: body.target_user_id, target_email: target.email, session_id: session.id },
   })
 
-  cookies().set(IMPERSONATION_COOKIE, session.id, {
+  const cookieStore = await cookies()
+  cookieStore.set(IMPERSONATION_COOKIE, session.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     path: '/',
     maxAge: 60 * 60 * 8,
   })

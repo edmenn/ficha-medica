@@ -6,6 +6,7 @@ import { getCurrentUserProfile } from '@/lib/auth'
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentUserProfile()
   if (!profile) redirect('/login')
+  if (profile.is_active === false) redirect('/login?inactive=1')
   if (profile.role !== 'admin') redirect('/records')
 
   const impersonation = await getActiveImpersonation()

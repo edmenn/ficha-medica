@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminApi } from '@/lib/auth/guards'
 import { createServiceClient } from '@/lib/supabase/server'
+import { clientIp, rateLimit } from '@/lib/rate-limit'
 
 // GET: validate token (used by accept-invite page)
 export async function GET(req: NextRequest) {
@@ -24,9 +25,17 @@ export async function GET(req: NextRequest) {
 
 // POST: either create invite (admin) or accept invite (public with token+password)
 export async function POST(req: NextRequest) {
+  const limiter = rateLimit(`invite:${clientIp(req)}`, { limit: 10, windowMs: 60 * 1000 })
+  if (!limiter.allowed) {
+    return NextResponse.json({ error: 'Demasiadas solicitudes. Intentá de nuevo en un momento.' }, { status: 429 })
+  }
+
   const body = await req.json() as { email?: string; token?: string; password?: string }
 
   if (body.token && body.password) {
+    if (body.password.length < 12) {
+      return NextResponse.json({ error: 'La contraseña debe tener al menos 12 caracteres' }, { status: 400 })
+    }
     // Accept invitation flow
     const service = await createServiceClient()
     const { data: invite } = await service

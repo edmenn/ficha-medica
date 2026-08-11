@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireOperationalContext } from '@/lib/auth/guards'
 import { compareDateStringsDesc, isDateInRange } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
+import { isValidImagePath } from '@/lib/storage-paths'
 
 function normalizeFilterValue(value: string | null | undefined): string {
   return (value ?? '')
@@ -11,8 +12,10 @@ function normalizeFilterValue(value: string | null | undefined): string {
     .toLowerCase()
 }
 
-function getPrimaryImagePath(record: { image_paths?: string[] | null; image_path?: string | null }) {
-  return record.image_paths?.[0] ?? record.image_path ?? null
+function getPrimaryImagePath(record: { image_paths?: string[] | null; image_path?: string | null }, userId: string) {
+  const paths = record.image_paths?.length ? record.image_paths : record.image_path ? [record.image_path] : []
+  const valid = paths.filter(path => isValidImagePath(path, userId))
+  return valid[0] ?? null
 }
 
 export async function GET(req: NextRequest) {
@@ -89,7 +92,7 @@ export async function GET(req: NextRequest) {
     })
 
   const records = await Promise.all(filtered.slice(0, 50).map(async record => {
-    const imagePath = getPrimaryImagePath(record)
+    const imagePath = getPrimaryImagePath(record, ctx.effectiveUserId)
     if (!imagePath || imagePath === 'manual-entry') {
       return { ...record, image_url: null }
     }
