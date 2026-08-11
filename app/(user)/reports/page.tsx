@@ -101,7 +101,7 @@ export default async function ReportsPage({
               type="date"
               name="from"
               defaultValue={toCalendarDate(from)}
-              className="w-full min-w-0 max-w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
+              className="h-10 w-full min-w-0 max-w-full appearance-none rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm leading-none text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
           <div className="min-w-0 sm:flex-1">
@@ -111,7 +111,7 @@ export default async function ReportsPage({
               type="date"
               name="to"
               defaultValue={toCalendarDate(to)}
-              className="w-full min-w-0 max-w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
+              className="h-10 w-full min-w-0 max-w-full appearance-none rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm leading-none text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
         </div>
