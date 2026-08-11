@@ -355,7 +355,7 @@ export default function SettingsPageClient({
             />
           </div>
           {passwordError && <p className="text-xs text-red-400">{passwordError}</p>}
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="submit"
               disabled={passwordSaving}

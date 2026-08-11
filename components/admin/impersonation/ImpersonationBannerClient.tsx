@@ -20,12 +20,12 @@ export default function ImpersonationBannerClient({ targetEmail }: { targetEmail
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-amber-700 px-4 py-2 text-sm text-white">
-      <span>Viendo el sistema como <strong>{targetEmail}</strong></span>
+    <div className="fixed top-0 left-0 right-0 z-50 flex flex-wrap items-center justify-between gap-2 bg-amber-700 px-4 py-2 text-sm text-white">
+      <span className="min-w-0 break-all">Viendo el sistema como <strong>{targetEmail}</strong></span>
       <button
         onClick={handleStop}
         disabled={loading}
-        className="rounded bg-amber-900 px-3 py-1 text-xs font-medium disabled:opacity-50"
+        className="shrink-0 rounded bg-amber-900 px-3 py-1 text-xs font-medium disabled:opacity-50"
       >
         {loading ? 'Saliendo...' : 'Volver a admin'}
       </button>

@@ -241,7 +241,7 @@ export default function RecordDetailClient({ record: initialRecord, customFields
           />
         </div>
       )}
-      <div className="mb-5 flex gap-3">
+      <div className="mb-5 flex flex-wrap gap-3">
         {record.image_url && (
           <button
             type="button"

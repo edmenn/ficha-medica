@@ -93,8 +93,8 @@ export default async function ReportsPage({
       <h1 className="mb-4 text-xl font-bold">Reportes</h1>
 
       <form className="mb-4">
-        <div className="mb-3 flex gap-2">
-          <div className="flex-1">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+          <div className="sm:flex-1">
             <label htmlFor="reports-from" className="mb-1 block text-xs text-slate-500">Desde</label>
             <input
               id="reports-from"
@@ -104,7 +104,7 @@ export default async function ReportsPage({
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
           </div>
-          <div className="flex-1">
+          <div className="sm:flex-1">
             <label htmlFor="reports-to" className="mb-1 block text-xs text-slate-500">Hasta</label>
             <input
               id="reports-to"
@@ -153,16 +153,16 @@ export default async function ReportsPage({
               {Object.entries(stats.bySanatorio)
                 .sort((a, b) => b[1] - a[1])
                 .map(([name, count]) => (
-                  <div key={name} className="mb-2 flex justify-between text-sm">
-                    <span className="text-slate-300">{name}</span>
-                    <span className="text-slate-400">{count}</span>
+                  <div key={name} className="mb-2 flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate text-slate-300">{name}</span>
+                    <span className="shrink-0 text-slate-400">{count}</span>
                   </div>
                 ))}
             </div>
           )}
 
           {records.length > 0 && (
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <Link
                 href={`/api/export?format=xlsx&${queryString}`}
                 target="_blank"

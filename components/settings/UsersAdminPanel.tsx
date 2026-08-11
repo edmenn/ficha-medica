@@ -79,12 +79,12 @@ export default function UsersAdminPanel({ initialUsers, initialInvites }: Props)
       <div className="mb-6">
         <h2 className="text-sm font-semibold text-slate-400 mb-3">Activos</h2>
         {users.map(u => (
-          <div key={u.id} className="bg-slate-800 rounded-xl p-3 mb-2 flex justify-between items-center">
-            <div>
-              <p className="text-white text-sm">{u.email}</p>
+          <div key={u.id} className="bg-slate-800 rounded-xl p-3 mb-2 flex flex-wrap justify-between items-center gap-2">
+            <div className="min-w-0">
+              <p className="text-white text-sm break-all">{u.email}</p>
               <p className="text-xs text-slate-500">{u.role} · {u.record_count ?? 0} registro(s)</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
               <span className="text-xs text-green-400">● activo</span>
               <Link href={`/admin/users/${u.id}`} className="text-xs text-blue-400">
                 Ver usuario
@@ -134,14 +134,14 @@ export default function UsersAdminPanel({ initialUsers, initialInvites }: Props)
 
       <div className="mb-6">
         <h2 className="text-sm font-semibold text-slate-400 mb-3">Invitar usuario</h2>
-        <form onSubmit={sendInvite} className="flex gap-2">
+        <form onSubmit={sendInvite} className="flex flex-col sm:flex-row gap-2">
           <input
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="email@ejemplo.com"
             required
-            className="flex-1 bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm"
+            className="flex-1 min-w-0 bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm"
           />
           <button
             type="submit"
@@ -170,9 +170,9 @@ export default function UsersAdminPanel({ initialUsers, initialInvites }: Props)
         <div>
           <h2 className="text-sm font-semibold text-slate-400 mb-3">Invitaciones pendientes</h2>
           {invites.map(inv => (
-            <div key={inv.id} className="bg-slate-800 rounded-xl p-3 mb-2 flex justify-between items-center">
-              <p className="text-white text-sm">{inv.email}</p>
-              <span className="text-xs text-yellow-400">pendiente</span>
+            <div key={inv.id} className="bg-slate-800 rounded-xl p-3 mb-2 flex justify-between items-center gap-2">
+              <p className="text-white text-sm break-all">{inv.email}</p>
+              <span className="text-xs text-yellow-400 shrink-0">pendiente</span>
             </div>
           ))}
         </div>

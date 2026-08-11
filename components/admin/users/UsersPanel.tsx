@@ -95,9 +95,9 @@ export default function UsersPanel({ users, invitations }: Props) {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">Usuarios</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => { setShowInviteForm(value => !value); setShowCreateForm(false) }}
             className="rounded-lg bg-slate-700 px-3 py-1.5 text-sm text-white"
@@ -197,7 +197,7 @@ export default function UsersPanel({ users, invitations }: Props) {
       )}
 
       {tab === 'invitations' && (
-        <div className="overflow-hidden rounded-xl border border-slate-800">
+        <div className="overflow-x-auto rounded-xl border border-slate-800">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-800 bg-slate-900/70">

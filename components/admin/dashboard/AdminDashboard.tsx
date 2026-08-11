@@ -15,7 +15,7 @@ export default function AdminDashboard({ stats }: { stats: AdminStats }) {
         <p className="mt-1 text-sm text-slate-400">Resumen del sistema</p>
       </div>
 
-      <div className="mb-6 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70">
+      <div className="mb-6 overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/70">
         <table className="w-full text-sm">
           <tbody className="divide-y divide-slate-800">
             <tr>

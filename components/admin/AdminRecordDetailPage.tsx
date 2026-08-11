@@ -12,13 +12,13 @@ interface Props {
 export default function AdminRecordDetailPage({ userId, record, customFields }: Props) {
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm text-slate-500">Registro supervisado</p>
-          <h1 className="text-2xl font-bold text-white">{record.final_data.paciente ?? 'Sin nombre'}</h1>
+          <h1 className="text-2xl font-bold text-white break-words">{record.final_data.paciente ?? 'Sin nombre'}</h1>
           <p className="mt-1 text-sm text-slate-400">{record.final_data.fecha_cirugia ?? 'Sin fecha'}</p>
         </div>
-        <Link href={`/admin/users/${userId}`} className="rounded-lg bg-slate-800 px-4 py-2 text-sm text-white">
+        <Link href={`/admin/users/${userId}`} className="shrink-0 rounded-lg bg-slate-800 px-4 py-2 text-sm text-white">
           Volver
         </Link>
       </div>

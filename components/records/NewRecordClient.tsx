@@ -269,7 +269,7 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
           {analyzeData.warning === 'duplicate' && analyzeData.existing_id && (
             <div className="mb-4 rounded-lg border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200">
               <p className="mb-3">Ya existe una ficha para este paciente en esta fecha.</p>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={() => router.push(`/records/${analyzeData.existing_id}`)}
@@ -290,7 +290,7 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
           {pendingDuplicateExistingId && (
             <div className="mb-4 rounded-lg border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200">
               <p className="mb-3">Hay una ficha posiblemente duplicada con los mismos datos clave.</p>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
                   onClick={() => router.push(`/records/${pendingDuplicateExistingId}`)}
