@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { clearAppCache } from '@/lib/clear-cache'
 import type { CustomFieldTemplate, UserRole } from '@/types'
 
 interface OpenRouterModelOption {
@@ -41,6 +42,8 @@ export default function SettingsPageClient({
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordSaved, setPasswordSaved] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [clearingCache, setClearingCache] = useState(false)
+  const [cacheMessage, setCacheMessage] = useState<string | null>(null)
 
   async function ensureModelsLoaded() {
     if (modelsLoaded) return
@@ -160,6 +163,20 @@ export default function SettingsPageClient({
     await supabase.auth.signOut()
     router.push('/login')
     router.refresh()
+  }
+
+  async function handleClearCache() {
+    setClearingCache(true)
+    setCacheMessage(null)
+    const { cleared, swUnregistered } = await clearAppCache()
+    setClearingCache(false)
+    const parts: string[] = []
+    if (cleared > 0) parts.push(`${cleared} caché(s)`)
+    if (swUnregistered) parts.push('service worker')
+    setCacheMessage(`Listo${parts.length ? ': ' + parts.join(' y ') : ''}. Recargando...`)
+    setTimeout(() => {
+      window.location.href = '/settings'
+    }, 800)
   }
 
   const filteredModels = models.filter(option => {
@@ -372,6 +389,22 @@ export default function SettingsPageClient({
             </button>
           </div>
         </form>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="mb-3 text-sm font-semibold text-slate-400">Solución de problemas</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          Si ves una versión desactualizada de la app, limpiá el caché local. Esto no borra tus fichas ni tu cuenta.
+        </p>
+        <button
+          type="button"
+          onClick={handleClearCache}
+          disabled={clearingCache}
+          className="w-full rounded-xl bg-slate-800 py-3 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+        >
+          {clearingCache ? 'Limpiando...' : '🧹 Limpiar caché y actualizar'}
+        </button>
+        {cacheMessage && <p className="mt-2 text-xs text-emerald-400">{cacheMessage}</p>}
       </div>
 
     </div>
