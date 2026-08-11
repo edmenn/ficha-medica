@@ -123,23 +123,23 @@ export default async function SearchPage({
           placeholder="Paciente, procedimiento, diagnóstico..."
           className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
         />
-        <div className="flex gap-2">
-          <div className="flex-1">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="min-w-0 sm:flex-1">
             <label className="mb-1 block text-xs text-slate-500">Desde</label>
             <input
               type="date"
               name="from"
               defaultValue={from}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
+              className="w-full min-w-0 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 sm:flex-1">
             <label className="mb-1 block text-xs text-slate-500">Hasta</label>
             <input
               type="date"
               name="to"
               defaultValue={to}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
+              className="w-full min-w-0 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
         </div>

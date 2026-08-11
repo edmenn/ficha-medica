@@ -94,24 +94,24 @@ export default async function ReportsPage({
 
       <form className="mb-4">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row">
-          <div className="sm:flex-1">
+          <div className="min-w-0 sm:flex-1">
             <label htmlFor="reports-from" className="mb-1 block text-xs text-slate-500">Desde</label>
             <input
               id="reports-from"
               type="date"
               name="from"
               defaultValue={toCalendarDate(from)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+              className="w-full min-w-0 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
-          <div className="sm:flex-1">
+          <div className="min-w-0 sm:flex-1">
             <label htmlFor="reports-to" className="mb-1 block text-xs text-slate-500">Hasta</label>
             <input
               id="reports-to"
               type="date"
               name="to"
               defaultValue={toCalendarDate(to)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+              className="w-full min-w-0 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
         </div>
