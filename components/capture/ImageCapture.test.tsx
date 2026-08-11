@@ -1,10 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import ImageCapture from '@/components/capture/ImageCapture'
 
-function createFile(name: string, type: string) {
-  return new File([new ArrayBuffer(8)], name, { type })
-}
-
 describe('ImageCapture', () => {
   it('does not mention PDF and exposes a manual entry action', () => {
     const onImageSelected = vi.fn()
@@ -19,40 +15,14 @@ describe('ImageCapture', () => {
     expect(onManualEntry).toHaveBeenCalledTimes(1)
   })
 
-  it('exposes an "Elegir imagen" action', () => {
+  it('exposes camera, image picker and manual entry actions', () => {
     const onImageSelected = vi.fn()
-    render(<ImageCapture onImageSelected={onImageSelected} />)
+    const onManualEntry = vi.fn()
+    render(<ImageCapture onImageSelected={onImageSelected} onManualEntry={onManualEntry} />)
 
+    expect(screen.getByRole('button', { name: /tomar foto/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /elegir imagen/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /importar de documentos/i })).toBeInTheDocument()
-  })
-
-  it('shows a gallery from the selected folder and picks a single image', async () => {
-    const onImageSelected = vi.fn()
-    render(<ImageCapture onImageSelected={onImageSelected} />)
-
-    const folderInput = screen.getByRole('button', { name: /importar de documentos/i })
-
-    Object.defineProperty(HTMLInputElement.prototype, 'webkitdirectory', { value: true, configurable: true })
-
-    const fileInput = document.querySelector('input[webkitdirectory]')
-    expect(fileInput).not.toBeNull()
-
-    const files = [createFile('a.png', 'image/png'), createFile('b.jpg', 'image/jpeg'), createFile('c.txt', 'text/plain')]
-    Object.defineProperty(fileInput as HTMLInputElement, 'files', {
-      value: files as unknown as FileList,
-      configurable: true,
-    })
-
-    fireEvent.click(folderInput)
-    fireEvent.change(fileInput as HTMLInputElement)
-
-    const galleryButtons = await screen.findAllByRole('button', { name: /^captura \d/i })
-    expect(galleryButtons).toHaveLength(2)
-
-    fireEvent.click(galleryButtons[0])
-
-    expect(onImageSelected).toHaveBeenCalledTimes(1)
-    expect(onImageSelected).toHaveBeenCalledWith(files[0])
+    expect(screen.getByRole('button', { name: /cargar manualmente/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /importar de documentos/i })).not.toBeInTheDocument()
   })
 })
