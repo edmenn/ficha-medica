@@ -13,8 +13,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (impersonation) redirect('/records')
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <main className="pb-20 mx-auto px-4 pt-4 max-w-6xl">{children}</main>
+    <div className="min-h-dvh bg-slate-950 text-white">
+      <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:pt-8">{children}</main>
       <AdminNav />
     </div>
   )

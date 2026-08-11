@@ -9,38 +9,34 @@ interface AdminStats {
 
 export default function AdminDashboard({ stats }: { stats: AdminStats }) {
   return (
-    <div>
-      <div className="mb-6">
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
         <h1 className="text-2xl font-bold text-white">Panel de Administración</h1>
         <p className="mt-1 text-sm text-slate-400">Resumen del sistema</p>
       </div>
 
-      <div className="mb-6 overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/70">
-        <table className="w-full text-sm">
-          <tbody className="divide-y divide-slate-800">
-            <tr>
-              <td className="px-4 py-3 text-slate-400">Total usuarios</td>
-              <td className="px-4 py-3 text-right font-semibold text-white">{stats.totalUsers}</td>
-            </tr>
-            <tr>
-              <td className="px-4 py-3 text-slate-400">Usuarios operativos</td>
-              <td className="px-4 py-3 text-right font-semibold text-white">{stats.userCount}</td>
-            </tr>
-            <tr>
-              <td className="px-4 py-3 text-slate-400">Administradores</td>
-              <td className="px-4 py-3 text-right font-semibold text-white">{stats.adminCount}</td>
-            </tr>
-            <tr>
-              <td className="px-4 py-3 text-slate-400">Invitaciones pendientes</td>
-              <td className="px-4 py-3 text-right font-semibold text-amber-300">{stats.pendingInvitations}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Total usuarios</p>
+          <p className="mt-2 text-3xl font-bold text-white">{stats.totalUsers}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Usuarios operativos</p>
+          <p className="mt-2 text-3xl font-bold text-white">{stats.userCount}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Administradores</p>
+          <p className="mt-2 text-3xl font-bold text-white">{stats.adminCount}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Invitaciones pendientes</p>
+          <p className="mt-2 text-3xl font-bold text-amber-300">{stats.pendingInvitations}</p>
+        </div>
       </div>
 
       <Link
         href="/admin/users"
-        className="block rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800"
+        className="block rounded-2xl border border-slate-700 bg-slate-900/70 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-800"
       >
         Gestionar usuarios →
       </Link>

@@ -14,8 +14,8 @@ export default function AdminNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
-      <div className="flex justify-around items-center h-16 max-w-6xl mx-auto px-2">
+    <nav className="fixed bottom-0 left-0 right-0 border-t border-slate-800 bg-slate-900/95 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-around px-2">
         {ADMIN_NAV_ITEMS.map(item => {
           const active = item.href === '/admin'
             ? pathname === '/admin'
@@ -26,9 +26,9 @@ export default function AdminNav() {
             <Link
               key={item.href}
               href={item.href}
-              className="flex flex-col items-center gap-0.5 flex-1"
+              className="flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1 text-center"
             >
-              <span className="text-xl">{item.icon}</span>
+              <span className={`text-xl ${item.href === '/admin' && active ? 'scale-105' : ''}`}>{item.icon}</span>
               <span className={`text-[10px] ${active ? 'text-blue-400' : 'text-slate-500'}`}>
                 {item.label}
               </span>

@@ -188,9 +188,13 @@ export default function SettingsPageClient({
   const showOperationalSettings = initialRole === 'user'
 
   return (
-    <div>
-      <h1 className="mb-6 text-xl font-bold">Configuración</h1>
-      {showOperationalSettings && <form onSubmit={handleSave} className="space-y-5">
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
+        <h1 className="text-xl font-bold">Configuración</h1>
+        <p className="mt-1 text-sm text-slate-400">Cuenta, modelo, campos y mantenimiento</p>
+      </div>
+
+      {showOperationalSettings && <form onSubmit={handleSave} className="space-y-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
         <div>
           <label className="mb-1 block text-sm text-slate-400">OpenRouter API Key</label>
           <input
@@ -198,7 +202,7 @@ export default function SettingsPageClient({
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
             placeholder="sk-or-v1-... (dejá vacío para no cambiar)"
-            className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 font-mono text-sm text-white focus:border-blue-500 focus:outline-none"
+            className="h-10 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 font-mono text-sm text-white focus:border-blue-500 focus:outline-none"
           />
           <p className="mt-1 text-xs text-slate-500">Se guarda encriptada. Obtené tu key en openrouter.ai</p>
         </div>
@@ -209,7 +213,7 @@ export default function SettingsPageClient({
             value={model}
             onChange={e => setModel(e.target.value)}
             placeholder="anthropic/claude-3.5-sonnet"
-            className="mb-3 w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 font-mono text-sm text-white focus:border-blue-500 focus:outline-none"
+            className="mb-3 h-10 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 font-mono text-sm text-white focus:border-blue-500 focus:outline-none"
           />
           <label className="mb-1 block text-sm text-slate-400">Buscar y seleccionar modelo</label>
           <input
@@ -221,7 +225,7 @@ export default function SettingsPageClient({
               setModelQuery(e.target.value)
             }}
             placeholder="Ej: Claude, GPT-4, Llama..."
-            className="mb-2 w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white focus:border-blue-500 focus:outline-none"
+            className="mb-2 h-10 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-white focus:border-blue-500 focus:outline-none"
           />
           {modelQuery.trim().length > 0 && (
             <div className="mb-2 max-h-48 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 p-2">
@@ -236,7 +240,7 @@ export default function SettingsPageClient({
                       setModel(option.id)
                       setModelQuery('')
                     }}
-                    className="mb-1 flex w-full flex-col rounded px-3 py-2 text-left transition-colors hover:bg-slate-800"
+                    className="mb-1 flex w-full flex-col rounded-lg px-3 py-2 text-left transition-colors hover:bg-slate-800"
                   >
                     <span className="text-sm font-medium text-slate-200">{option.name}</span>
                     <span className="mt-0.5 font-mono text-xs text-slate-500">{option.id}</span>
@@ -257,28 +261,28 @@ export default function SettingsPageClient({
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-xl bg-blue-600 py-3 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="h-10 w-full rounded-xl bg-blue-600 px-4 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
           {saved ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar'}
         </button>
       </form>}
 
-      {showCustomFields && <div className="mt-8">
+      {showCustomFields && <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
         <h2 className="mb-3 text-sm font-semibold text-slate-400">Campos personalizados</h2>
-        <div className="mb-3 rounded-xl border border-slate-700 bg-slate-900/50 p-3">
+        <div className="mb-3 rounded-xl border border-slate-700 bg-slate-950/40 p-3">
           <input
             type="text"
             value={newFieldName}
             onChange={e => setNewFieldName(e.target.value)}
             placeholder="Nombre del campo"
-            className="mb-2 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+            className="mb-2 h-10 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-white focus:border-blue-500 focus:outline-none"
           />
           <div className="mb-2 flex items-center gap-2">
             <label className="text-xs text-slate-400">Tipo:</label>
             <select
               value={newFieldType}
               onChange={e => setNewFieldType(e.target.value as 'text' | 'number' | 'date' | 'bool')}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-1.5 text-sm text-white"
+              className="h-9 rounded-lg border border-slate-700 bg-slate-800 px-2 text-sm text-white"
             >
               <option value="text">Texto</option>
               <option value="number">Número</option>
@@ -295,24 +299,24 @@ export default function SettingsPageClient({
             />
             Obligatorio
           </label>
-          <button
-            type="button"
-            onClick={addField}
-            className="w-full rounded-lg bg-slate-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-600"
-          >
-            Agregar
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={addField}
+              className="h-10 w-full rounded-lg bg-slate-700 px-4 text-sm font-medium text-white hover:bg-slate-600"
+            >
+              Agregar
+            </button>
+          </div>
         {customFieldError && <p className="mb-2 text-xs text-red-400">{customFieldError}</p>}
         <div className="space-y-2">
           {customFields.map(field => (
-            <div key={field.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-800 p-3">
+            <div key={field.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <span className="truncate text-sm text-white">{field.field_name}</span>
                 <select
                   value={field.field_type}
                   onChange={e => updateField(field.id, { field_type: e.target.value as 'text' | 'number' | 'date' | 'bool' })}
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300"
+                  className="h-8 rounded-lg border border-slate-700 bg-slate-900 px-2 text-xs text-slate-300"
                 >
                   <option value="text">Texto</option>
                   <option value="number">Número</option>
@@ -340,13 +344,11 @@ export default function SettingsPageClient({
               </div>
             </div>
           ))}
-          {customFields.length === 0 && (
-            <p className="text-sm text-slate-500">Todavía no hay campos personalizados.</p>
-          )}
+          {customFields.length === 0 && <p className="text-sm text-slate-500">Todavía no hay campos personalizados.</p>}
         </div>
       </div>}
 
-      <div className="mt-8">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
         <h2 className="mb-3 text-sm font-semibold text-slate-400">Cuenta</h2>
         <form onSubmit={handlePasswordChange} className="space-y-3">
           <div>
@@ -357,7 +359,7 @@ export default function SettingsPageClient({
               onChange={e => setPassword(e.target.value)}
               minLength={8}
               required
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+              className="h-10 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 text-white focus:border-blue-500 focus:outline-none"
             />
           </div>
           <div>
@@ -368,7 +370,7 @@ export default function SettingsPageClient({
               onChange={e => setPasswordConfirm(e.target.value)}
               minLength={8}
               required
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+              className="h-10 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 text-white focus:border-blue-500 focus:outline-none"
             />
           </div>
           {passwordError && <p className="text-xs text-red-400">{passwordError}</p>}
@@ -376,7 +378,7 @@ export default function SettingsPageClient({
             <button
               type="submit"
               disabled={passwordSaving}
-              className="flex-1 rounded-xl bg-slate-700 py-3 font-medium text-white hover:bg-slate-600 disabled:opacity-50"
+              className="flex-1 rounded-xl bg-slate-700 px-4 py-3 font-medium text-white hover:bg-slate-600 disabled:opacity-50"
             >
               {passwordSaved ? '✓ Contraseña actualizada' : passwordSaving ? 'Guardando...' : 'Cambiar contraseña'}
             </button>
@@ -391,7 +393,7 @@ export default function SettingsPageClient({
         </form>
       </div>
 
-      <div className="mt-8">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
         <h2 className="mb-3 text-sm font-semibold text-slate-400">Solución de problemas</h2>
         <p className="mb-3 text-xs text-slate-500">
           Si ves una versión desactualizada de la app, limpiá el caché local. Esto no borra tus fichas ni tu cuenta.
@@ -400,13 +402,12 @@ export default function SettingsPageClient({
           type="button"
           onClick={handleClearCache}
           disabled={clearingCache}
-          className="w-full rounded-xl bg-slate-800 py-3 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          className="h-10 w-full rounded-xl bg-slate-800 px-4 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
           {clearingCache ? 'Limpiando...' : '🧹 Limpiar caché y actualizar'}
         </button>
         {cacheMessage && <p className="mt-2 text-xs text-emerald-400">{cacheMessage}</p>}
       </div>
-
     </div>
   )
 }
