@@ -115,22 +115,22 @@ export default async function SearchPage({
   return (
     <div>
       <h1 className="mb-4 text-xl font-bold">Buscar</h1>
-      <form className="mb-4 space-y-3">
+      <form className="mb-4 space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
         <input
           type="search"
           name="q"
           defaultValue={q}
           placeholder="Paciente, procedimiento, diagnóstico..."
-          className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+          className="w-full max-w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
         />
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid gap-2 sm:grid-cols-2">
           <div className="min-w-0 sm:flex-1">
             <label className="mb-1 block text-xs text-slate-500">Desde</label>
             <input
               type="date"
               name="from"
               defaultValue={from}
-              className="w-full min-w-0 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
+              className="w-full min-w-0 max-w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
           <div className="min-w-0 sm:flex-1">
@@ -139,7 +139,7 @@ export default async function SearchPage({
               type="date"
               name="to"
               defaultValue={to}
-              className="w-full min-w-0 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
+              className="w-full min-w-0 max-w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
         </div>
@@ -149,7 +149,7 @@ export default async function SearchPage({
             <select
               name="sanatorio"
               defaultValue={sanatorio}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              className="w-full max-w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             >
               <option value="">Todos</option>
               {Array.from(sanatorioOptions).sort((a, b) => a.localeCompare(b, 'es')).map(option => (
@@ -162,7 +162,7 @@ export default async function SearchPage({
             <select
               name="cirujano"
               defaultValue={cirujano}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+              className="w-full max-w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             >
               <option value="">Todos</option>
               {Array.from(cirujanoOptions).sort((a, b) => a.localeCompare(b, 'es')).map(option => (

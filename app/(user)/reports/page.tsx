@@ -92,8 +92,8 @@ export default async function ReportsPage({
     <div>
       <h1 className="mb-4 text-xl font-bold">Reportes</h1>
 
-      <form className="mb-4">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+      <form className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+        <div className="mb-3 grid gap-2 sm:grid-cols-2">
           <div className="min-w-0 sm:flex-1">
             <label htmlFor="reports-from" className="mb-1 block text-xs text-slate-500">Desde</label>
             <input
@@ -101,7 +101,7 @@ export default async function ReportsPage({
               type="date"
               name="from"
               defaultValue={toCalendarDate(from)}
-              className="w-full min-w-0 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
+              className="w-full min-w-0 max-w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
           <div className="min-w-0 sm:flex-1">
@@ -111,7 +111,7 @@ export default async function ReportsPage({
               type="date"
               name="to"
               defaultValue={toCalendarDate(to)}
-              className="w-full min-w-0 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
+              className="w-full min-w-0 max-w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none [color-scheme:dark]"
             />
           </div>
         </div>
@@ -120,7 +120,7 @@ export default async function ReportsPage({
           <select
             name="sanatorio"
             defaultValue={sanatorio}
-            className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+            className="w-full max-w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
           >
             <option value="">Todos</option>
             {sanatorioOptions.map(option => (
