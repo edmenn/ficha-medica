@@ -71,6 +71,14 @@ export interface AuditEntry {
   created_at: string
 }
 
+export interface AiUsageSummary {
+  total_cost_usd: number | null
+  total_requests: number
+  total_tokens: number | null
+  last_cost_usd: number | null
+  last_at: string | null
+}
+
 // API response shapes
 export interface AnalyzeResponse {
   record_id: string

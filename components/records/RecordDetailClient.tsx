@@ -8,11 +8,12 @@ import BackToRecordsButton from '@/components/ui/BackToRecordsButton'
 import { deleteRecordAction, updateRecordAction } from '@/app/(user)/records/[id]/actions'
 import { prepareImageForUpload } from '@/lib/imageUtils'
 import { STANDARD_FIELD_ORDER } from '@/lib/record-utils'
-import type { AnalyzeResponse, CustomFieldTemplate, SurgicalRecord, SurgicalFields } from '@/types'
+import type { AiUsageSummary, AnalyzeResponse, CustomFieldTemplate, SurgicalRecord, SurgicalFields } from '@/types'
 
 interface Props {
   record: SurgicalRecord
   customFields: CustomFieldTemplate[]
+  aiUsage?: AiUsageSummary
 }
 
 interface CompareRow {
@@ -36,7 +37,7 @@ const LABELS: Record<string, string> = {
   observaciones: 'Observaciones',
 }
 
-export default function RecordDetailClient({ record: initialRecord, customFields }: Props) {
+export default function RecordDetailClient({ record: initialRecord, customFields, aiUsage }: Props) {
   const router = useRouter()
   const [record, setRecord] = useState(initialRecord)
   const [fields, setFields] = useState<SurgicalFields>(initialRecord.final_data)
@@ -269,6 +270,32 @@ export default function RecordDetailClient({ record: initialRecord, customFields
         onSave={handleSave}
         saving={saving}
       />
+
+      {aiUsage && aiUsage.total_requests > 0 && (
+        <div className="mt-6 rounded-xl border border-slate-700 bg-slate-900/60 p-4 text-sm">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Uso de IA (informativo)
+          </p>
+          <div className="flex flex-wrap gap-x-8 gap-y-2">
+            <div>
+              <p className="text-xs text-slate-500">Costo acumulado</p>
+              <p className="text-base font-semibold text-slate-200">
+                {aiUsage.total_cost_usd != null ? `US$ ${aiUsage.total_cost_usd.toFixed(4)}` : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Consultas IA</p>
+              <p className="text-base font-semibold text-slate-200">{aiUsage.total_requests}</p>
+            </div>
+            {aiUsage.last_cost_usd != null && (
+              <div>
+                <p className="text-xs text-slate-500">Último costo</p>
+                <p className="text-base font-semibold text-slate-200">US$ {aiUsage.last_cost_usd.toFixed(4)}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

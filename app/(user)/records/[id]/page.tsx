@@ -3,7 +3,7 @@ import RecordDetailClient from '@/components/records/RecordDetailClient'
 import { requireOperationalContext } from '@/lib/auth/guards'
 import { createServiceClient } from '@/lib/supabase/server'
 import { isValidImagePath } from '@/lib/storage-paths'
-import type { SurgicalRecord } from '@/types'
+import type { AiUsageSummary, SurgicalRecord } from '@/types'
 
 function getImagePaths(record: { image_paths?: string[] | null; image_path?: string | null }) {
   if (record.image_paths && record.image_paths.length > 0) return record.image_paths
@@ -37,6 +37,26 @@ export default async function RecordDetailPage({ params }: { params: Promise<{ i
     }))).filter((value): value is string => Boolean(value))
   }
 
+  // Uso de IA acumulado por registro (solo informativo; no va a reportes/exportaciones).
+  const { data: usageRows } = await service
+    .from('ai_usage')
+    .select('cost_usd, total_tokens, created_at')
+    .eq('record_id', id)
+    .eq('user_id', ctx.effectiveUserId)
+
+  let usage: AiUsageSummary = { total_cost_usd: null, total_requests: 0, total_tokens: null, last_cost_usd: null, last_at: null }
+  if (usageRows && usageRows.length > 0) {
+    const totalCost = usageRows.reduce((acc, row) => acc + (Number(row.cost_usd) || 0), 0)
+    const last = usageRows[usageRows.length - 1]
+    usage = {
+      total_cost_usd: totalCost,
+      total_requests: usageRows.length,
+      total_tokens: usageRows.reduce((acc, row) => acc + (Number(row.total_tokens) || 0), 0) || null,
+      last_cost_usd: last && Number(last.cost_usd) || null,
+      last_at: last?.created_at ?? null,
+    }
+  }
+
   return (
     <RecordDetailClient
       record={{
@@ -45,6 +65,7 @@ export default async function RecordDetailPage({ params }: { params: Promise<{ i
         image_urls: imageUrls,
       }}
       customFields={customFields ?? []}
+      aiUsage={usage}
     />
   )
 }

@@ -4,6 +4,7 @@ import { requireOperationalContext } from '@/lib/auth/guards'
 import { decrypt } from '@/lib/crypto'
 import { parseAIResponse } from '@/lib/ai-parser'
 import { buildExtractionPrompt, createOpenRouterClient, MODELS_WITH_JSON_MODE } from '@/lib/openrouter'
+import { extractUsageFromCompletion, insertAiUsage } from '@/lib/ai-usage'
 import { findRecordBySourceImageHash, insertSurgicalRecord, selectRecordForMerge, updateMergedRecord } from '@/lib/records-db'
 import { mergeSurgicalFieldsFillNulls, normalizeSurgicalFields } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -32,6 +33,11 @@ function validateImageFile(imageFile: File | null) {
 
 function hashBuffer(buffer: ArrayBuffer) {
   return createHash('sha256').update(Buffer.from(buffer)).digest('hex')
+}
+
+function bufferToDataUrl(buffer: ArrayBuffer, mimeType: string) {
+  const base64 = Buffer.from(buffer).toString('base64')
+  return `data:${mimeType};base64,${base64}`
 }
 
 async function uploadAndSign(
@@ -152,22 +158,29 @@ export async function POST(req: NextRequest) {
   const model = userSettings.preferred_model ?? 'anthropic/claude-3.5-sonnet'
   const client = createOpenRouterClient(apiKey)
 
+  const primaryDataUrl = bufferToDataUrl(primaryBuffer, imageFile!.type)
+  const rotatedDataUrl = rotatedImageFile
+    ? bufferToDataUrl(await rotatedImageFile.arrayBuffer(), rotatedImageFile.type)
+    : null
+
   let rawResponse: string
+  let aiUsage: ReturnType<typeof extractUsageFromCompletion> | null = null
   try {
-    const completion = await client.chat.completions.create({
+    const { data: completion, response } = await client.chat.completions.create({
       model,
       messages: [{
         role: 'user',
         content: [
           { type: 'text', text: buildExtractionPrompt(customTemplates ?? []) },
-          { type: 'image_url', image_url: { url: primaryUpload.signedUrl } },
-          ...(rotatedUpload ? [{ type: 'image_url' as const, image_url: { url: rotatedUpload.signedUrl } }] : []),
+          { type: 'image_url', image_url: { url: primaryDataUrl } },
+          ...(rotatedDataUrl ? [{ type: 'image_url' as const, image_url: { url: rotatedDataUrl } }] : []),
         ],
       }],
       max_tokens: 1000,
       ...(MODELS_WITH_JSON_MODE.has(model) ? { response_format: { type: 'json_object' as const } } : {}),
-    })
+    }).withResponse()
     rawResponse = completion.choices[0]?.message?.content ?? ''
+    aiUsage = extractUsageFromCompletion(completion, response.headers)
   } catch (err: unknown) {
     console.error('[analyze] OpenRouter error:', err instanceof Error ? err.message : err)
     await service.storage.from('surgical-images').remove(
@@ -193,6 +206,9 @@ export async function POST(req: NextRequest) {
 
     if (existing?.length) {
       await service.storage.from('surgical-images').remove([primaryUpload.path])
+      if (aiUsage) {
+        await insertAiUsage(service, { user_id: ctx.effectiveUserId, record_id: existing[0].id, model, event_type: 'analyze', ...aiUsage })
+      }
       const response: AnalyzeResponse = {
         record_id: existing[0].id,
         extracted_data: fields,
@@ -237,6 +253,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Error al guardar registro' }, { status: 500 })
     }
 
+    if (aiUsage) {
+      await insertAiUsage(service, { user_id: ctx.effectiveUserId, record_id: existingRecord.id, model, event_type: 'analyze', ...aiUsage })
+    }
+
     return NextResponse.json({
       record_id: existingRecord.id,
       extracted_data: mergedExtracted,
@@ -257,6 +277,10 @@ export async function POST(req: NextRequest) {
   if (recordError || !record) {
     await service.storage.from('surgical-images').remove([primaryUpload.path])
     return NextResponse.json({ error: 'Error al guardar registro' }, { status: 500 })
+  }
+
+  if (aiUsage) {
+    await insertAiUsage(service, { user_id: ctx.effectiveUserId, record_id: record.id, model, event_type: 'analyze', ...aiUsage })
   }
 
   const { error: auditError } = await service.from('audit_log').insert({

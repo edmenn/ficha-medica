@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { clearAppCache } from '@/lib/clear-cache'
@@ -10,6 +10,13 @@ interface OpenRouterModelOption {
   id: string
   name: string
   context_length: number | null
+}
+
+interface UsageSummary {
+  total_cost_usd: number | null
+  total_requests: number
+  total_tokens: number | null
+  balance_usd: number | null
 }
 
 interface Props {
@@ -44,6 +51,14 @@ export default function SettingsPageClient({
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [clearingCache, setClearingCache] = useState(false)
   const [cacheMessage, setCacheMessage] = useState<string | null>(null)
+  const [usage, setUsage] = useState<UsageSummary | null>(null)
+
+  useEffect(() => {
+    fetch('/api/settings/usage')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setUsage(data))
+      .catch(() => setUsage(null))
+  }, [])
 
   async function ensureModelsLoaded() {
     if (modelsLoaded) return
@@ -193,6 +208,32 @@ export default function SettingsPageClient({
         <h1 className="text-xl font-bold">Configuración</h1>
         <p className="mt-1 text-sm text-slate-400">Cuenta, modelo, campos y mantenimiento</p>
       </div>
+
+      {usage && (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5 text-sm">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Uso de IA (informativo)
+          </p>
+          <div className="flex flex-wrap gap-x-8 gap-y-2">
+            <div>
+              <p className="text-xs text-slate-500">Saldo OpenRouter</p>
+              <p className="text-base font-semibold text-slate-200">
+                {usage.balance_usd != null ? `US$ ${usage.balance_usd.toFixed(4)}` : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Uso total histórico</p>
+              <p className="text-base font-semibold text-slate-200">
+                {usage.total_cost_usd != null ? `US$ ${usage.total_cost_usd.toFixed(4)}` : 'US$ 0.0000'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500">Consultas IA totales</p>
+              <p className="text-base font-semibold text-slate-200">{usage.total_requests}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showOperationalSettings && <form onSubmit={handleSave} className="space-y-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
         <div>
