@@ -3,6 +3,27 @@
 El desarrollo local usa un **Supabase local** (Docker + CLI), separado de producción.
 Producción usa el proyecto Supabase cloud; local usa `http://127.0.0.1:54321`.
 
+## Flujo de trabajo con dos ramas
+
+- **`main`** → producción. Se despliega a Vercel con cada push. Solo recibir cambios aprobados.
+- **`local`** → rama de trabajo para probar cambios sin tocar `main`.
+
+Regla de oro:
+1. Trabajá siempre en `local`: `git checkout local`
+2. Probá los cambios en `localhost:3000`
+3. Solo cuando esté listo, mergeá a `main` y pusheá (dispara deploy a Vercel)
+
+```bash
+git checkout local        # ir a la rama de pruebas
+npm run dev               # probar en http://localhost:3000
+# ... cuando esté listo ...
+git checkout main         # volver a main
+git merge local           # integrar los cambios
+git push origin main      # desplegar a Vercel
+```
+
+> `main` está protegido en GitHub (push directo bloquea secretos; usa PR o merge local).
+
 ## Comandos
 
 ```bash
