@@ -13,7 +13,8 @@
     "reset:operational-data": "node scripts/reset-operational-data.mjs",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
-    "db:seed": "set -a && source .env.local && set +a && node scripts/seed-local.mjs"
+    "db:seed": "set -a && source .env.local && set +a && node scripts/seed-local.mjs",
+    "db:clone-prod": "set -a && source .env.local.prod-backup && set +a && DB_PASS=\"$DB_PASS\" SUPABASE_SERVICE_ROLE_KEY_PROD=\"$SUPABASE_SERVICE_ROLE_KEY\" SUPABASE_SERVICE_ROLE_KEY_LOCAL=$(set -a && source .env.local && set +a && echo \"$SUPABASE_SERVICE_ROLE_KEY\") bash scripts/clone-prod-to-local.sh"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

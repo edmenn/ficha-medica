@@ -6,11 +6,28 @@ Producción usa el proyecto Supabase cloud; local usa `http://127.0.0.1:54321`.
 ## Comandos
 
 ```bash
-npm run db:start   # levanta Supabase local (aplica migraciones 001-008)
-npm run db:seed    # crea usuarios de prueba + registros de ejemplo
-npm run db:stop    # detiene Supabase local
-npm run dev        # levanta Next en http://localhost:3000
+npm run db:start        # levanta Supabase local (aplica migraciones 001-008)
+npm run db:seed         # crea usuarios de prueba + registros de ejemplo
+npm run db:clone-prod   # clona datos reales de produccion al entorno local
+npm run db:stop         # detiene Supabase local
+npm run dev             # levanta Next en http://localhost:3000
 ```
+
+## Clonar datos de produccion
+
+`npm run db:clone-prod` copia al entorno local:
+- Tablas `public` (users, surgical_records, audit_log, invitations, impersonation_sessions, custom_field_templates)
+- Usuarios `auth` (para poder loguear con las credenciales reales)
+- Imagenes del bucket `surgical-images`
+
+Requisitos:
+- Supabase CLI linkeado al proyecto de produccion
+- `DB_PASS` (password de la DB de produccion, en `.env.local.prod-backup`)
+- `SUPABASE_SERVICE_ROLE_KEY_PROD` (service role key de produccion) para copiar imagenes
+
+Usos de password: `DB_PASS='J8GFnk3F*6s!Pv' SUPABASE_SERVICE_ROLE_KEY_PROD='...' npm run db:clone-prod`
+
+> Despues de clonar, logueate con las credenciales reales de produccion (la password es la misma).
 
 ## Usuarios de prueba
 
