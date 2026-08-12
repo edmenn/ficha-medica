@@ -66,18 +66,11 @@ export async function GET(req: NextRequest) {
     diff: { format, from, to, sanatorio, count: filteredRecords.length },
   })
 
-  const { data: customTemplates } = await service
-    .from('custom_field_templates')
-    .select('*')
-    .eq('user_id', ctx.effectiveUserId)
-    .order('display_order')
-
   const emittedAt = new Date().toISOString()
 
   if (format === 'xlsx') {
     const buffer = await buildWorkbook({
       records: filteredRecords,
-      customFields: customTemplates ?? [],
       from,
       to,
       sanatorio: sanatorio ?? undefined,
@@ -92,7 +85,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (format === 'pdf') {
-    const buffer = await buildPDF(filteredRecords, from, to, sanatorio ?? undefined, emittedAt, customTemplates ?? [])
+    const buffer = await buildPDF(filteredRecords, from, to, sanatorio ?? undefined, emittedAt)
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/pdf',

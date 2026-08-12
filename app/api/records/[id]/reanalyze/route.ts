@@ -78,11 +78,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'API key inválida, reconfigurala en Configuración' }, { status: 422 })
   }
 
-  const { data: customTemplates } = await service
-    .from('custom_field_templates')
-    .select('field_name, field_type')
+  const { data: userSanatoriums } = await service
+    .from('user_sanatoriums')
+    .select('name')
     .eq('user_id', ctx.effectiveUserId)
-    .order('display_order')
+  const sanatoriumNames = (userSanatoriums ?? []).map(s => s.name)
 
   const formData = await req.formData()
   const imageFile = formData.get('image') as File | null
@@ -143,7 +143,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         messages: [{
           role: 'user',
           content: [
-            { type: 'text', text: buildExtractionPrompt(customTemplates ?? []) },
+            { type: 'text', text: buildExtractionPrompt(sanatoriumNames) },
             { type: 'image_url', image_url: { url: primaryDataUrl } },
             ...(rotatedDataUrl ? [{ type: 'image_url' as const, image_url: { url: rotatedDataUrl } }] : []),
           ],

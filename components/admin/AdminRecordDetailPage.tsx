@@ -1,15 +1,14 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import RecordForm from '@/components/records/RecordForm'
-import type { CustomFieldTemplate, SurgicalRecord } from '@/types'
+import type { SurgicalRecord } from '@/types'
 
 interface Props {
   userId: string
   record: SurgicalRecord
-  customFields: CustomFieldTemplate[]
 }
 
-export default function AdminRecordDetailPage({ userId, record, customFields }: Props) {
+export default function AdminRecordDetailPage({ userId, record }: Props) {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -46,7 +45,6 @@ export default function AdminRecordDetailPage({ userId, record, customFields }: 
       <RecordForm
         fields={record.final_data}
         extractedFields={record.extracted_data}
-        customFields={customFields}
         onChange={() => undefined}
         onSave={() => undefined}
         readOnly

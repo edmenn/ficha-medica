@@ -20,19 +20,12 @@ export default async function AdminRecordPage({
   await requireAdmin()
 
   const service = await createServiceClient()
-  const [{ data: record }, { data: customFields }] = await Promise.all([
-    service
-      .from('surgical_records')
-      .select('*')
-      .eq('id', recordId)
-      .eq('user_id', id)
-      .maybeSingle(),
-    service
-      .from('custom_field_templates')
-      .select('*')
-      .eq('user_id', id)
-      .order('display_order'),
-  ])
+  const { data: record } = await service
+    .from('surgical_records')
+    .select('*')
+    .eq('id', recordId)
+    .eq('user_id', id)
+    .maybeSingle()
 
   if (!record) {
     notFound()
@@ -57,7 +50,6 @@ export default async function AdminRecordPage({
         image_url: imageUrls[0] ?? null,
         image_urls: imageUrls,
       }}
-      customFields={customFields ?? []}
     />
   )
 }

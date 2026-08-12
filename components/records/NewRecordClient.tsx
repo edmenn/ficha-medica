@@ -9,7 +9,7 @@ import RecordForm from '@/components/records/RecordForm'
 import BackToRecordsButton from '@/components/ui/BackToRecordsButton'
 import { prepareImageForUpload } from '@/lib/imageUtils'
 import { emptySurgicalFields } from '@/lib/record-utils'
-import type { AnalyzeResponse, CustomFieldTemplate, SurgicalFields, SurgicalRecord } from '@/types'
+import type { AnalyzeResponse, SurgicalFields, SurgicalRecord } from '@/types'
 
 type Step = 'capture' | 'processing' | 'review'
 
@@ -23,17 +23,18 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
   const [previews, setPreviews] = useState<string[]>([])
   const [analyzeData, setAnalyzeData] = useState<AnalyzeResponse | null>(null)
   const [fields, setFields] = useState<SurgicalFields | null>(null)
-  const [customFields, setCustomFields] = useState<CustomFieldTemplate[]>([])
   const [error, setError] = useState<string | null>(blockedForRole ? 'Admins no pueden operar registros' : null)
   const [saving, setSaving] = useState(false)
   const [processingExtraPage, setProcessingExtraPage] = useState(false)
   const [pendingDuplicateFile, setPendingDuplicateFile] = useState<File | null>(null)
   const [pendingDuplicateExistingId, setPendingDuplicateExistingId] = useState<string | null>(null)
+  const [sanatoriums, setSanatoriums] = useState<string[]>([])
 
   useEffect(() => {
-    fetch('/api/custom-fields')
-      .then(r => r.json())
-      .then(data => setCustomFields(data.fields ?? []))
+    fetch('/api/sanatoriums')
+      .then(res => res.ok ? res.json() : { sanatoriums: [] })
+      .then(data => setSanatoriums((data.sanatoriums ?? []).map((s: { name: string }) => s.name)))
+      .catch(() => setSanatoriums([]))
   }, [])
 
   async function analyzePreparedFile(prepared: File, options?: { recordId?: string; confirmDuplicate?: boolean }) {
@@ -268,7 +269,10 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
           )}
           {analyzeData.warning === 'duplicate' && analyzeData.existing_id && (
             <div className="mb-4 rounded-lg border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200">
-              <p className="mb-3">Ya existe una ficha para este paciente en esta fecha.</p>
+              <p className="mb-3">
+                Ya existe una ficha para este paciente en esta fecha.
+                {analyzeData.duplicate_score != null && <span className="ml-1 text-xs text-amber-400">(similitud {Math.round(analyzeData.duplicate_score * 100)}%)</span>}
+              </p>
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
@@ -314,10 +318,10 @@ export default function NewRecordClient({ blockedForRole = false }: Props) {
           <RecordForm
             fields={fields}
             extractedFields={analyzeData.extracted_data}
-            customFields={customFields}
             onChange={setFields}
             onSave={handleSave}
             saving={saving}
+            sanatoriums={sanatoriums}
           />
         </>
       )}

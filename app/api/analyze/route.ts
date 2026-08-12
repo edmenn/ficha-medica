@@ -6,6 +6,7 @@ import { parseAIResponse } from '@/lib/ai-parser'
 import { buildExtractionPrompt, createOpenRouterClient, MODELS_WITH_JSON_MODE } from '@/lib/openrouter'
 import { extractUsageFromCompletion, insertAiUsage } from '@/lib/ai-usage'
 import { findRecordBySourceImageHash, insertSurgicalRecord, selectRecordForMerge, updateMergedRecord } from '@/lib/records-db'
+import { findDuplicate } from '@/lib/record-duplicates'
 import { mergeSurgicalFieldsFillNulls, normalizeSurgicalFields } from '@/lib/record-utils'
 import { createServiceClient } from '@/lib/supabase/server'
 import { clientIp, rateLimit } from '@/lib/rate-limit'
@@ -130,11 +131,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'API key inválida, reconfigurala en Configuración' }, { status: 422 })
   }
 
-  const { data: customTemplates } = await service
-    .from('custom_field_templates')
-    .select('field_name, field_type')
+  const { data: userSanatoriums } = await service
+    .from('user_sanatoriums')
+    .select('name')
     .eq('user_id', ctx.effectiveUserId)
-    .order('display_order')
+  const sanatoriumNames = (userSanatoriums ?? []).map(s => s.name)
 
   const primaryUpload = await uploadAndSign(service, ctx.effectiveUserId, imageFile!, primaryBuffer)
   if ('error' in primaryUpload) {
@@ -171,7 +172,7 @@ export async function POST(req: NextRequest) {
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: buildExtractionPrompt(customTemplates ?? []) },
+          { type: 'text', text: buildExtractionPrompt(sanatoriumNames) },
           { type: 'image_url', image_url: { url: primaryDataUrl } },
           ...(rotatedDataUrl ? [{ type: 'image_url' as const, image_url: { url: rotatedDataUrl } }] : []),
         ],
@@ -198,22 +199,25 @@ export async function POST(req: NextRequest) {
   if (!existingRecordId && !confirmDuplicate && fields.paciente && fields.fecha_cirugia) {
     const { data: existing } = await service
       .from('surgical_records')
-      .select('id')
+      .select('id, final_data, source_image_hash')
       .eq('user_id', ctx.effectiveUserId)
       .eq('final_data->>paciente', fields.paciente)
       .eq('final_data->>fecha_cirugia', fields.fecha_cirugia)
-      .limit(1)
+      .limit(5)
 
-    if (existing?.length) {
+    const duplicate = findDuplicate(existing ?? [], fields, null)
+
+    if (duplicate && duplicate.existing_id) {
       await service.storage.from('surgical-images').remove([primaryUpload.path])
       if (aiUsage) {
-        await insertAiUsage(service, { user_id: ctx.effectiveUserId, record_id: existing[0].id, model, event_type: 'analyze', ...aiUsage })
+        await insertAiUsage(service, { user_id: ctx.effectiveUserId, record_id: duplicate.existing_id, model, event_type: 'analyze', ...aiUsage })
       }
       const response: AnalyzeResponse = {
-        record_id: existing[0].id,
+        record_id: duplicate.existing_id,
         extracted_data: fields,
         warning: 'duplicate',
-        existing_id: existing[0].id,
+        existing_id: duplicate.existing_id,
+        duplicate_score: duplicate.score,
       }
       return NextResponse.json(response)
     }

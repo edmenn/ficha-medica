@@ -2,8 +2,7 @@ import React from 'react'
 import {
   Document, Page, Text, View, StyleSheet, renderToBuffer
 } from '@react-pdf/renderer'
-import type { CustomFieldTemplate, SurgicalRecord } from '@/types'
-import { customFieldNames } from './helpers'
+import type { SurgicalRecord } from '@/types'
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso)
@@ -74,7 +73,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 11, color: '#475569', lineHeight: 1.5 },
 })
 
-function RecordDetail({ record, customFields }: { record: SurgicalRecord; customFields: string[] }) {
+function RecordDetail({ record }: { record: SurgicalRecord }) {
   const f = record.final_data ?? {}
   const pairs: [string, string | null | undefined][] = [
     ['Paciente', f.paciente],
@@ -87,7 +86,6 @@ function RecordDetail({ record, customFields }: { record: SurgicalRecord; custom
     ['Instrumentador', f.instrumentador],
     ['Sanatorio', f.sanatorio],
     ['Observaciones', f.observaciones],
-    ...customFields.map(name => [name, f[name]] as [string, string | null | undefined]),
   ]
 
   return (
@@ -104,14 +102,13 @@ function RecordDetail({ record, customFields }: { record: SurgicalRecord; custom
 }
 
 function ReportDocument({
-  records, from, to, sanatorio, emittedAt, customFields,
+  records, from, to, sanatorio, emittedAt,
 }: {
   records: SurgicalRecord[]
   from: string
   to: string
   sanatorio?: string
   emittedAt: string
-  customFields: string[]
 }) {
   const total = records.length
   const bySanatorio = new Map<string, number>()
@@ -192,7 +189,7 @@ function ReportDocument({
 
             <View style={styles.divider} />
             <Text style={styles.summaryTitle}>Detalle por registro</Text>
-            {records.map(r => <RecordDetail key={`d-${r.id}`} record={r} customFields={customFields} />)}
+            {records.map(r => <RecordDetail key={`d-${r.id}`} record={r} />)}
           </>
         )}
 
@@ -214,9 +211,7 @@ export async function buildPDF(
   to: string,
   sanatorio?: string,
   emittedAt?: string,
-  customTemplates?: CustomFieldTemplate[]
 ): Promise<Buffer> {
-  const customFields = customFieldNames(records, customTemplates ?? [])
   return renderToBuffer(
     <ReportDocument
       records={records}
@@ -224,7 +219,6 @@ export async function buildPDF(
       to={to}
       sanatorio={sanatorio}
       emittedAt={emittedAt ?? new Date().toISOString()}
-      customFields={customFields}
     />
   )
 }

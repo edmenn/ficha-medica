@@ -1,7 +1,6 @@
 export type UserRole = 'admin' | 'user'
 export type RecordStatus = 'draft' | 'reviewed' | 'final'
 export type AuditAction = 'created' | 'edited' | 'deleted' | 'exported' | 'reanalyzed' | 'impersonation_started' | 'impersonation_ended'
-export type FieldType = 'text' | 'number' | 'date' | 'bool'
 
 export interface UserProfile {
   id: string
@@ -43,15 +42,6 @@ export interface SurgicalRecord {
   updated_at: string
 }
 
-export interface CustomFieldTemplate {
-  id: string
-  user_id: string
-  field_name: string
-  field_type: FieldType
-  is_required: boolean
-  display_order: number
-}
-
 export interface Invitation {
   id: string
   email: string
@@ -84,7 +74,8 @@ export interface AnalyzeResponse {
   record_id: string
   extracted_data: SurgicalFields
   warning?: 'duplicate'
-  existing_id?: string
+  existing_id?: string | null
+  duplicate_score?: number
 }
 
 export interface ExportQuery {

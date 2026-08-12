@@ -8,7 +8,6 @@ export default async function AdminSettingsPage() {
     <SettingsPageClient
       initialRole={profile.role}
       initialPreferredModel={profile.preferred_model}
-      initialCustomFields={[]}
     />
   )
 }

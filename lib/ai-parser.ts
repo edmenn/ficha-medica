@@ -28,11 +28,18 @@ function remapFieldAliases(rawFields: Record<string, unknown>): Partial<Surgical
   return remapped
 }
 
+// La IA/OCR no debe dejar numeros (IDs, documentos, folios) en el nombre del paciente.
+function stripDigitsFromPatient(fields: SurgicalFields): SurgicalFields {
+  if (!fields.paciente) return fields
+  const cleaned = fields.paciente.replace(/\d+/g, '').replace(/\s+/g, ' ').trim()
+  return { ...fields, paciente: cleaned || null }
+}
+
 export function parseAIResponse(raw: string): { fields: SurgicalFields } {
   try {
     const extracted = extractJSON(raw)
     return {
-      fields: normalizeSurgicalFields(remapFieldAliases(extracted)),
+      fields: stripDigitsFromPatient(normalizeSurgicalFields(remapFieldAliases(extracted))),
     }
   } catch {
     return { fields: emptySurgicalFields() }

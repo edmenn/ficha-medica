@@ -18,20 +18,20 @@ describe('parseAIResponse', () => {
   it('parses a valid JSON string response', () => {
     const raw = `\`\`\`json\n${JSON.stringify(SAMPLE_VALID)}\n\`\`\``
     const result = parseAIResponse(raw)
-    expect(result.fields.paciente).toBe('García, Juan Carlos')
-    expect(result.fields.procedimiento).toBe('Apendicectomía laparoscópica')
+    expect(result.fields.paciente).toBe('GARCÍA, JUAN CARLOS')
+    expect(result.fields.procedimiento).toBe('APENDICECTOMÍA LAPAROSCÓPICA')
   })
 
   it('parses a plain JSON response without code fences', () => {
     const raw = JSON.stringify(SAMPLE_VALID)
     const result = parseAIResponse(raw)
-    expect(result.fields.cirujano).toBe('Dr. Osvaldo Pérez')
+    expect(result.fields.cirujano).toBe('DR. OSVALDO PÉREZ')
   })
 
   it('keeps all ayudantes when the model returns an array', () => {
     const raw = JSON.stringify({ ...SAMPLE_VALID, ayudantes: ['Dr. Martínez', 'Dra. Gómez'] })
     const result = parseAIResponse(raw)
-    expect(result.fields.ayudantes).toBe('Dr. Martínez, Dra. Gómez')
+    expect(result.fields.ayudantes).toBe('DR. MARTÍNEZ, DRA. GÓMEZ')
   })
 
   it('maps common alias keys returned by the model', () => {
@@ -44,15 +44,20 @@ describe('parseAIResponse', () => {
     })
     const result = parseAIResponse(raw)
     expect(result.fields.fecha_cirugia).toBe('21-04-2026')
-    expect(result.fields.instrumentador).toBe('Enf. Rodríguez')
-    expect(result.fields.sanatorio).toBe('Sanatorio San Lucas')
+    expect(result.fields.instrumentador).toBe('ENF. RODRÍGUEZ')
+    expect(result.fields.sanatorio).toBe('SANATORIO SAN LUCAS')
   })
 
   it('returns null for missing fields, not invented values', () => {
     const partial = { paciente: 'Test', procedimiento: null }
     const result = parseAIResponse(JSON.stringify(partial))
     expect(result.fields.diagnostico).toBeNull()
-    expect(result.fields.paciente).toBe('Test')
+    expect(result.fields.paciente).toBe('TEST')
+  })
+
+  it('strips digits (IDs/documents) from the patient name', () => {
+    const result = parseAIResponse(JSON.stringify({ paciente: '311512 AVEIRO BENITEZ, GREGORIA' }))
+    expect(result.fields.paciente).toBe('AVEIRO BENITEZ, GREGORIA')
   })
 
   it('normalizes short and iso dates to dd-mm-aaaa', () => {

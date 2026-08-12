@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import RecordForm from '@/components/records/RecordForm'
@@ -8,11 +8,10 @@ import BackToRecordsButton from '@/components/ui/BackToRecordsButton'
 import { deleteRecordAction, updateRecordAction } from '@/app/(user)/records/[id]/actions'
 import { prepareImageForUpload } from '@/lib/imageUtils'
 import { STANDARD_FIELD_ORDER } from '@/lib/record-utils'
-import type { AiUsageSummary, AnalyzeResponse, CustomFieldTemplate, SurgicalRecord, SurgicalFields } from '@/types'
+import type { AiUsageSummary, AnalyzeResponse, SurgicalRecord, SurgicalFields } from '@/types'
 
 interface Props {
   record: SurgicalRecord
-  customFields: CustomFieldTemplate[]
   aiUsage?: AiUsageSummary
 }
 
@@ -37,7 +36,7 @@ const LABELS: Record<string, string> = {
   observaciones: 'Observaciones',
 }
 
-export default function RecordDetailClient({ record: initialRecord, customFields, aiUsage }: Props) {
+export default function RecordDetailClient({ record: initialRecord, aiUsage }: Props) {
   const router = useRouter()
   const [record, setRecord] = useState(initialRecord)
   const [fields, setFields] = useState<SurgicalFields>(initialRecord.final_data)
@@ -46,6 +45,14 @@ export default function RecordDetailClient({ record: initialRecord, customFields
   const [compareRows, setCompareRows] = useState<CompareRow[] | null>(null)
   const [saving, startSaving] = useTransition()
   const [deleting, startDeleting] = useTransition()
+  const [sanatoriums, setSanatoriums] = useState<string[]>([])
+
+  useEffect(() => {
+    fetch('/api/sanatoriums')
+      .then(res => res.ok ? res.json() : { sanatoriums: [] })
+      .then(data => setSanatoriums((data.sanatoriums ?? []).map((s: { name: string }) => s.name)))
+      .catch(() => setSanatoriums([]))
+  }, [])
 
   const hasUnsavedChanges = JSON.stringify(fields) !== JSON.stringify(record.final_data)
 
@@ -102,10 +109,7 @@ export default function RecordDetailClient({ record: initialRecord, customFields
 
     const ai = data.extracted_data
     const current = fields
-    const keys = [
-      ...STANDARD_FIELD_ORDER.map(k => String(k)),
-      ...customFields.map(f => f.field_name),
-    ]
+    const keys = STANDARD_FIELD_ORDER.map(k => String(k))
     const rows: CompareRow[] = keys
       .map(key => {
         const cur = current[key] ?? ''
@@ -265,10 +269,10 @@ export default function RecordDetailClient({ record: initialRecord, customFields
       <RecordForm
         fields={fields}
         extractedFields={record.extracted_data}
-        customFields={customFields}
         onChange={setFields}
         onSave={handleSave}
         saving={saving}
+        sanatoriums={sanatoriums}
       />
 
       {aiUsage && aiUsage.total_requests > 0 && (

@@ -1,5 +1,4 @@
 import OpenAI from 'openai'
-import type { CustomFieldTemplate } from '@/types'
 
 export function createOpenRouterClient(apiKey: string) {
   return new OpenAI({
@@ -51,12 +50,10 @@ Reglas:
 - "anestesiologo" puede aparecer como "anestesista" o "anestesiólogo/a"
 - "sanatorio" también puede aparecer como hospital o clínica`
 
-export function buildExtractionPrompt(
-  customFields: Pick<CustomFieldTemplate, 'field_name' | 'field_type'>[]
-) {
-  const customSection = customFields.length > 0
-    ? `\nAdemás extraé estos campos adicionales:\n${customFields.map(field => `- "${field.field_name}": ${field.field_type}`).join('\n')}`
+export function buildExtractionPrompt(sanatoriums?: string[]) {
+  const sanatoriumSection = sanatoriums && sanatoriums.length > 0
+    ? `\nSi el documento menciona un sanatorio que coincide (exacto o parcial) con uno de esta lista, devolvé el nombre EXACTO de la lista. Si no coincide con ninguno, devolvé lo que diga el documento:\n${sanatoriums.map(name => `- ${name}`).join('\n')}`
     : ''
 
-  return `${BASE_EXTRACTION_PROMPT}${customSection}`
+  return `${BASE_EXTRACTION_PROMPT}${sanatoriumSection}`
 }

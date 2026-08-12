@@ -17,10 +17,8 @@ export default async function RecordDetailPage({ params }: { params: Promise<{ i
   if ('error' in ctx) notFound()
 
   const service = await createServiceClient()
-  const [{ data: record }, { data: customFields }] = await Promise.all([
-    service.from('surgical_records').select('*').eq('id', id).eq('user_id', ctx.effectiveUserId).single(),
-    service.from('custom_field_templates').select('*').eq('user_id', ctx.effectiveUserId).order('display_order'),
-  ])
+  const { data: record } = await service
+    .from('surgical_records').select('*').eq('id', id).eq('user_id', ctx.effectiveUserId).single()
 
   if (!record) {
     notFound()
@@ -64,7 +62,6 @@ export default async function RecordDetailPage({ params }: { params: Promise<{ i
         image_url: imageUrls[0] ?? null,
         image_urls: imageUrls,
       }}
-      customFields={customFields ?? []}
       aiUsage={usage}
     />
   )

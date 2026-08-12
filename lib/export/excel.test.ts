@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import ExcelJS from 'exceljs'
 import { buildWorkbook } from './excel'
 import { sanitizeCellValue } from './helpers'
-import type { CustomFieldTemplate, SurgicalRecord } from '@/types'
+import type { SurgicalRecord } from '@/types'
 
 function makeRecord(overrides: Partial<SurgicalRecord['final_data']> = {}): SurgicalRecord {
   return {
@@ -31,8 +31,8 @@ function makeRecord(overrides: Partial<SurgicalRecord['final_data']> = {}): Surg
   }
 }
 
-async function readSheet(records: SurgicalRecord[], customFields: CustomFieldTemplate[] = []) {
-  const buf = await buildWorkbook({ records, customFields })
+async function readSheet(records: SurgicalRecord[]) {
+  const buf = await buildWorkbook({ records })
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(buf as unknown as Buffer)
   const ws = wb.worksheets[0]
@@ -64,19 +64,6 @@ describe('buildWorkbook', () => {
     expect(get(1).startsWith("'+")).toBe(true)
     expect(get(4).startsWith("'@")).toBe(true)
     expect(get(3).startsWith("'-")).toBe(true)
-  })
-
-  it('adds custom field columns dynamically', async () => {
-    const record = makeRecord({ lote: 'L-42' })
-    const customFields: CustomFieldTemplate[] = [
-      { id: 'c1', user_id: 'u1', field_name: 'lote', field_type: 'text', is_required: false, display_order: 1 },
-    ]
-    const ws = await readSheet([record], customFields)
-    const headerRow = ws.getRow(1)
-    const values = (headerRow.values as unknown[]).map(v => String(v ?? ''))
-    const loteCol = values.findIndex(v => v === 'lote')
-    expect(loteCol).toBeGreaterThan(0)
-    expect(String(ws.getRow(2).getCell(loteCol).value ?? '')).toBe('L-42')
   })
 
   it('stores workbook title metadata', async () => {

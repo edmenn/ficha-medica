@@ -62,6 +62,6 @@ describe('POST /api/records/duplicates', () => {
     }))
 
     expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual({ existing_id: 'existing-1' })
+    await expect(response.json()).resolves.toEqual({ existing_id: 'existing-1', score: 0.8 })
   })
 })

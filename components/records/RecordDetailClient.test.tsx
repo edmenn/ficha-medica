@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import RecordDetailClient from '@/components/records/RecordDetailClient'
-import type { CustomFieldTemplate, SurgicalRecord } from '@/types'
+import type { SurgicalRecord } from '@/types'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -57,7 +57,7 @@ const baseRecord: SurgicalRecord = {
 
 describe('RecordDetailClient', () => {
   it('hides the AI reread action for manual-only records', () => {
-    render(<RecordDetailClient record={baseRecord} customFields={[] as CustomFieldTemplate[]} />)
+    render(<RecordDetailClient record={baseRecord} />)
 
     expect(screen.queryByRole('button', { name: /releer con ia/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /borrar/i })).toBeInTheDocument()

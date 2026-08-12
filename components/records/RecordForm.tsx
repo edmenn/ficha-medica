@@ -2,7 +2,7 @@
 
 import { normalizeSurgicalFields, STANDARD_FIELD_ORDER, validateSurgicalFields } from '@/lib/record-utils'
 import FieldRow from './FieldRow'
-import type { CustomFieldTemplate, SurgicalFields } from '@/types'
+import type { SurgicalFields } from '@/types'
 
 interface Props {
   fields: SurgicalFields
@@ -10,8 +10,8 @@ interface Props {
   onChange: (updated: SurgicalFields) => void
   onSave: () => void
   saving?: boolean
-  customFields?: CustomFieldTemplate[]
   readOnly?: boolean
+  sanatoriums?: string[]
 }
 
 export default function RecordForm({
@@ -20,23 +20,14 @@ export default function RecordForm({
   onChange,
   onSave,
   saving,
-  customFields = [],
   readOnly = false,
+  sanatoriums = [],
 }: Props) {
   const errors = validateSurgicalFields(fields)
 
   function handleChange(key: string, value: string) {
     onChange(normalizeSurgicalFields({ ...fields, [key]: value || null }))
   }
-
-  const orderedFields = [
-    ...STANDARD_FIELD_ORDER.map(field => String(field)),
-    ...customFields
-      .map(field => field.field_name)
-      .filter(fieldName => !STANDARD_FIELD_ORDER.includes(fieldName as keyof SurgicalFields)),
-  ]
-
-  const customFieldMap = new Map(customFields.map(field => [field.field_name, field]))
 
   return (
     <div>
@@ -45,22 +36,18 @@ export default function RecordForm({
           {errors.map(error => <p key={error}>{error}</p>)}
         </div>
       )}
-      {orderedFields.map(key => {
-        const template = customFieldMap.get(key)
-        const fieldType = key === 'fecha_cirugia' ? 'date' : template?.field_type ?? 'text'
-        return (
-          <FieldRow
-            key={key}
-            fieldName={key}
-            value={fields[key as keyof SurgicalFields] ?? ''}
-            aiValue={extractedFields[key as keyof SurgicalFields] ?? null}
-            onChange={value => handleChange(key, value)}
-            readOnly={readOnly}
-            fieldType={fieldType}
-            isRequired={key === 'fecha_cirugia' ? false : Boolean(template?.is_required)}
-          />
-        )
-      })}
+      {STANDARD_FIELD_ORDER.map(key => (
+        <FieldRow
+          key={key}
+          fieldName={String(key)}
+          value={fields[key as keyof SurgicalFields] ?? ''}
+          aiValue={extractedFields[key as keyof SurgicalFields] ?? null}
+          onChange={value => handleChange(String(key), value)}
+          readOnly={readOnly}
+          fieldType={key === 'fecha_cirugia' ? 'date' : 'text'}
+          suggestions={key === 'sanatorio' ? sanatoriums : undefined}
+        />
+      ))}
       {!readOnly && (
         <button
           onClick={onSave}

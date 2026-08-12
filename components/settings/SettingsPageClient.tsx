@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { clearAppCache } from '@/lib/clear-cache'
-import type { CustomFieldTemplate, UserRole } from '@/types'
+import type { UserRole } from '@/types'
 
 interface OpenRouterModelOption {
   id: string
@@ -22,13 +22,11 @@ interface UsageSummary {
 interface Props {
   initialRole: UserRole
   initialPreferredModel: string | null
-  initialCustomFields: CustomFieldTemplate[]
 }
 
 export default function SettingsPageClient({
   initialRole,
   initialPreferredModel,
-  initialCustomFields,
 }: Props) {
   const router = useRouter()
   const [apiKey, setApiKey] = useState('')
@@ -36,11 +34,6 @@ export default function SettingsPageClient({
   const [modelQuery, setModelQuery] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [customFields, setCustomFields] = useState(initialCustomFields)
-  const [newFieldName, setNewFieldName] = useState('')
-  const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date' | 'bool'>('text')
-  const [newFieldRequired, setNewFieldRequired] = useState(false)
-  const [customFieldError, setCustomFieldError] = useState<string | null>(null)
   const [models, setModels] = useState<OpenRouterModelOption[]>([])
   const [modelsLoaded, setModelsLoaded] = useState(false)
   const [modelsError, setModelsError] = useState<string | null>(null)
@@ -52,6 +45,9 @@ export default function SettingsPageClient({
   const [clearingCache, setClearingCache] = useState(false)
   const [cacheMessage, setCacheMessage] = useState<string | null>(null)
   const [usage, setUsage] = useState<UsageSummary | null>(null)
+  const [sanatoriums, setSanatoriums] = useState<{ id: string; name: string }[]>([])
+  const [newSanatorium, setNewSanatorium] = useState('')
+  const [sanatoriumError, setSanatoriumError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/settings/usage')
@@ -59,6 +55,37 @@ export default function SettingsPageClient({
       .then(data => setUsage(data))
       .catch(() => setUsage(null))
   }, [])
+
+  useEffect(() => {
+    if (initialRole !== 'user') return
+    fetch('/api/sanatoriums')
+      .then(res => res.ok ? res.json() : { sanatoriums: [] })
+      .then(data => setSanatoriums(data.sanatoriums ?? []))
+      .catch(() => setSanatoriums([]))
+  }, [initialRole])
+
+  async function addSanatorium() {
+    setSanatoriumError(null)
+    if (!newSanatorium.trim()) return
+    const res = await fetch('/api/sanatoriums', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newSanatorium.trim() }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setSanatoriums(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      setNewSanatorium('')
+    } else {
+      setSanatoriumError(data.error ?? 'No se pudo agregar el sanatorio')
+    }
+  }
+
+  async function removeSanatorium(id: string) {
+    setSanatoriumError(null)
+    await fetch(`/api/sanatoriums?id=${id}`, { method: 'DELETE' })
+    setSanatoriums(prev => prev.filter(s => s.id !== id))
+  }
 
   async function ensureModelsLoaded() {
     if (modelsLoaded) return
@@ -72,50 +99,6 @@ export default function SettingsPageClient({
       setModelsError(err instanceof Error ? err.message : 'No se pudo cargar la lista de modelos')
       setModelsLoaded(true)
     }
-  }
-
-  async function addField() {
-    setCustomFieldError(null)
-    if (!newFieldName.trim()) return
-    const res = await fetch('/api/custom-fields', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        field_name: newFieldName.trim(),
-        field_type: newFieldType,
-        is_required: newFieldRequired,
-      }),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      setCustomFields(prev => [...prev, data])
-      setNewFieldName('')
-      setNewFieldType('text')
-      setNewFieldRequired(false)
-    } else {
-      setCustomFieldError(data.error ?? 'No se pudo agregar el campo')
-    }
-  }
-
-  async function updateField(id: string, patch: Partial<CustomFieldTemplate>) {
-    setCustomFieldError(null)
-    const res = await fetch(`/api/custom-fields/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      setCustomFields(prev => prev.map(field => field.id === id ? data : field))
-    } else {
-      setCustomFieldError(data.error ?? 'No se pudo actualizar el campo')
-    }
-  }
-
-  async function removeField(id: string) {
-    setCustomFieldError(null)
-    await fetch(`/api/custom-fields/${id}`, { method: 'DELETE' })
-    setCustomFields(prev => prev.filter(field => field.id !== id))
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -199,7 +182,6 @@ export default function SettingsPageClient({
     if (!q) return true
     return option.id.toLowerCase().includes(q) || option.name.toLowerCase().includes(q)
   }).slice(0, 50)
-  const showCustomFields = initialRole === 'user'
   const showOperationalSettings = initialRole === 'user'
 
   return (
@@ -308,86 +290,44 @@ export default function SettingsPageClient({
         </button>
       </form>}
 
-      {showCustomFields && <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
-        <h2 className="mb-3 text-sm font-semibold text-slate-400">Campos personalizados</h2>
-        <div className="mb-3 rounded-xl border border-slate-700 bg-slate-950/40 p-3">
-          <input
-            type="text"
-            value={newFieldName}
-            onChange={e => setNewFieldName(e.target.value)}
-            placeholder="Nombre del campo"
-            className="mb-2 h-10 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-white focus:border-blue-500 focus:outline-none"
-          />
-          <div className="mb-2 flex items-center gap-2">
-            <label className="text-xs text-slate-400">Tipo:</label>
-            <select
-              value={newFieldType}
-              onChange={e => setNewFieldType(e.target.value as 'text' | 'number' | 'date' | 'bool')}
-              className="h-9 rounded-lg border border-slate-700 bg-slate-800 px-2 text-sm text-white"
-            >
-              <option value="text">Texto</option>
-              <option value="number">Número</option>
-              <option value="date">Fecha</option>
-              <option value="bool">Sí/No</option>
-            </select>
-          </div>
-          <label className="mb-3 flex items-center gap-2 text-xs text-slate-400">
+      {showOperationalSettings && (
+        <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
+          <h2 className="mb-3 text-sm font-semibold text-slate-400">Sanatorios</h2>
+          <div className="flex gap-2">
             <input
-              type="checkbox"
-              checked={newFieldRequired}
-              onChange={e => setNewFieldRequired(e.target.checked)}
-              className="accent-blue-500"
+              type="text"
+              value={newSanatorium}
+              onChange={e => setNewSanatorium(e.target.value.toLocaleUpperCase('es'))}
+              placeholder="Nombre del sanatorio"
+              className="h-10 min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800 px-3 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
-            Obligatorio
-          </label>
             <button
               type="button"
-              onClick={addField}
-              className="h-10 w-full rounded-lg bg-slate-700 px-4 text-sm font-medium text-white hover:bg-slate-600"
+              onClick={addSanatorium}
+              className="h-10 shrink-0 rounded-lg bg-slate-700 px-4 text-sm font-medium text-white hover:bg-slate-600"
             >
               Agregar
             </button>
           </div>
-        {customFieldError && <p className="mb-2 text-xs text-red-400">{customFieldError}</p>}
-        <div className="space-y-2">
-          {customFields.map(field => (
-            <div key={field.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span className="truncate text-sm text-white">{field.field_name}</span>
-                <select
-                  value={field.field_type}
-                  onChange={e => updateField(field.id, { field_type: e.target.value as 'text' | 'number' | 'date' | 'bool' })}
-                  className="h-8 rounded-lg border border-slate-700 bg-slate-900 px-2 text-xs text-slate-300"
-                >
-                  <option value="text">Texto</option>
-                  <option value="number">Número</option>
-                  <option value="date">Fecha</option>
-                  <option value="bool">Sí/No</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 text-xs text-slate-400">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(field.is_required)}
-                    onChange={e => updateField(field.id, { is_required: e.target.checked })}
-                    className="accent-blue-500"
-                  />
-                  Oblig.
-                </label>
+          {sanatoriumError && <p className="text-xs text-red-400">{sanatoriumError}</p>}
+          <div className="flex flex-wrap gap-2">
+            {sanatoriums.length === 0 && <p className="text-sm text-slate-500">Todavía no hay sanatorios. Se usan para autocompletar en el formulario.</p>}
+            {sanatoriums.map(s => (
+              <span key={s.id} className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-200">
+                {s.name}
                 <button
                   type="button"
-                  onClick={() => removeField(field.id)}
-                  className="text-xs text-red-400"
+                  onClick={() => removeSanatorium(s.id)}
+                  className="text-slate-500 hover:text-red-400"
+                  aria-label={`Quitar ${s.name}`}
                 >
-                  Quitar
+                  ✕
                 </button>
-              </div>
-            </div>
-          ))}
-          {customFields.length === 0 && <p className="text-sm text-slate-500">Todavía no hay campos personalizados.</p>}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>}
+      )}
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
         <h2 className="mb-3 text-sm font-semibold text-slate-400">Cuenta</h2>

@@ -24,9 +24,10 @@ interface Props {
   readOnly?: boolean
   fieldType?: 'text' | 'number' | 'date' | 'bool'
   isRequired?: boolean
+  suggestions?: string[]
 }
 
-export default function FieldRow({ fieldName, value, aiValue, onChange, readOnly = false, fieldType = 'text', isRequired = false }: Props) {
+export default function FieldRow({ fieldName, value, aiValue, onChange, readOnly = false, fieldType = 'text', isRequired = false, suggestions }: Props) {
   const label = FIELD_LABELS[fieldName] ?? fieldName
   const wasExtracted = aiValue !== null
   const wasModified = value !== (aiValue ?? '')
@@ -34,6 +35,7 @@ export default function FieldRow({ fieldName, value, aiValue, onChange, readOnly
   const [dateValue, setDateValue] = useState<string>(dateToISO(value) ?? '')
   const sharedClassName = 'w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm'
   const isDateField = fieldType === 'date'
+  const listId = suggestions && suggestions.length > 0 ? `field-${fieldName}-list` : undefined
 
   useEffect(() => {
     if (!textAreaRef.current) return
@@ -93,17 +95,38 @@ export default function FieldRow({ fieldName, value, aiValue, onChange, readOnly
         })}
       </div>
     )
+  } else if (suggestions && suggestions.length > 0) {
+    input = (
+      <>
+        <input
+          type="text"
+          value={value}
+          readOnly={readOnly}
+          list={listId}
+          onChange={event => onChange(event.target.value)}
+          placeholder="—"
+          className={sharedClassName}
+        />
+        {listId && (
+          <datalist id={listId}>
+            {suggestions.map(option => <option key={option} value={option} />)}
+          </datalist>
+        )}
+      </>
+    )
   } else {
     input = (
-      <textarea
-        ref={textAreaRef}
-        rows={1}
-        value={value}
-        readOnly={readOnly}
-        onChange={event => onChange(event.target.value)}
-        placeholder="—"
-        className={`${sharedClassName} min-h-12 resize-none overflow-hidden whitespace-pre-wrap break-words`}
-      />
+      <>
+        <textarea
+          ref={textAreaRef}
+          rows={1}
+          value={value}
+          readOnly={readOnly}
+          onChange={event => onChange(event.target.value)}
+          placeholder="—"
+          className={`${sharedClassName} min-h-12 resize-none overflow-hidden whitespace-pre-wrap break-words`}
+        />
+      </>
     )
   }
 
