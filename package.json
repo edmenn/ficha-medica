@@ -12,6 +12,7 @@
     "test:e2e": "playwright test",
     "reset:operational-data": "node scripts/reset-operational-data.mjs",
     "db:verify-prod": "DB_PASS=${DB_PASS:-$(grep '^DB_PASS=' .env.local.prod-backup | cut -d= -f2-)} bash scripts/verify-prod-schema.sh",
+    "db:normalize-existing": "set -a && source .env.local.prod-backup && set +a && node scripts/normalize-existing-records.mjs",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:seed": "set -a && source .env.local && set +a && node scripts/seed-local.mjs",

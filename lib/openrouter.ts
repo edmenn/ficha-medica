@@ -48,7 +48,13 @@ Reglas:
 - Revisá todo el documento antes de responder; no omitas campos visibles aunque estén en tablas o columnas
 - "instrumentador" puede aparecer como "instrumentadora", "instrumentista", "instrumentalista" o "arsenalera"
 - "anestesiologo" puede aparecer como "anestesista" o "anestesiólogo/a"
-- "sanatorio" también puede aparecer como hospital o clínica`
+- "sanatorio" también puede aparecer como hospital o clínica
+- Nombres de personas (paciente, cirujano, ayudantes, anestesiólogo, instrumentador):
+  - No incluyas números, documentos, folios ni IDs en ningún nombre
+  - No empieces ni termines el nombre con comas o signos de puntuación sueltos
+  - No incluyas valores vacíos como "NO APLICA", "SIN DATOS" o "S/D"
+  - Usá el título una sola vez y normalizado (DR., DRA., LIC., ENF.) antes del nombre
+  - Devolvé el paciente preferentemente como "APELLIDOS, NOMBRES" si el documento lo permite`
 
 export function buildExtractionPrompt(sanatoriums?: string[]) {
   const sanatoriumSection = sanatoriums && sanatoriums.length > 0

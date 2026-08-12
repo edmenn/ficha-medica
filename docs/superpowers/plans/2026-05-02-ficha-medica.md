@@ -1301,7 +1301,7 @@ const SAMPLE_VALID = {
   duracion: '1h 45min',
   diagnostico: 'Apendicitis aguda',
   procedimiento: 'Apendicectomía laparoscópica',
-  cirujano: 'Dr. Osvaldo Pérez',
+  cirujano: 'Dr. García, Juan',
   ayudantes: 'Dr. Martínez',
   anestesiologo: 'Dra. López',
   instrumentador: 'Enf. Rodríguez',
@@ -1320,7 +1320,7 @@ describe('parseAIResponse', () => {
   it('parses a plain JSON response without code fences', () => {
     const raw = JSON.stringify(SAMPLE_VALID)
     const result = parseAIResponse(raw)
-    expect(result.fields.cirujano).toBe('Dr. Osvaldo Pérez')
+    expect(result.fields.cirujano).toBe('Dr. García, Juan')
   })
 
   it('returns null for missing fields, not invented values', () => {

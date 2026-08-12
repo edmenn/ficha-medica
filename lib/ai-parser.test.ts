@@ -6,7 +6,7 @@ const SAMPLE_VALID = {
   fecha_cirugia: '12-04-2025',
   diagnostico: 'Apendicitis aguda',
   procedimiento: 'Apendicectomía laparoscópica',
-  cirujano: 'Dr. Osvaldo Pérez',
+  cirujano: 'Dr. García, Juan',
   ayudantes: 'Dr. Martínez',
   anestesiologo: 'Dra. López',
   instrumentador: 'Enf. Rodríguez',
@@ -25,7 +25,7 @@ describe('parseAIResponse', () => {
   it('parses a plain JSON response without code fences', () => {
     const raw = JSON.stringify(SAMPLE_VALID)
     const result = parseAIResponse(raw)
-    expect(result.fields.cirujano).toBe('DR. OSVALDO PÉREZ')
+    expect(result.fields.cirujano).toBe('DR. GARCÍA, JUAN')
   })
 
   it('keeps all ayudantes when the model returns an array', () => {
@@ -56,8 +56,26 @@ describe('parseAIResponse', () => {
   })
 
   it('strips digits (IDs/documents) from the patient name', () => {
-    const result = parseAIResponse(JSON.stringify({ paciente: '311512 AVEIRO BENITEZ, GREGORIA' }))
-    expect(result.fields.paciente).toBe('AVEIRO BENITEZ, GREGORIA')
+    const result = parseAIResponse(JSON.stringify({ paciente: '311512 PEREZ GARCIA, JUAN' }))
+    expect(result.fields.paciente).toBe('PEREZ GARCIA, JUAN')
+  })
+
+  it('normalizes medical titles in names', () => {
+    const result = parseAIResponse(JSON.stringify({ cirujano: 'DRA MARIA GOMEZ', anestesiologo: 'DR PEREZ' }))
+    expect(result.fields.cirujano).toBe('DRA. MARIA GOMEZ')
+    expect(result.fields.anestesiologo).toBe('DR. PEREZ')
+  })
+
+  it('removes noise tokens like NO APLICA from ayudantes', () => {
+    const result = parseAIResponse(JSON.stringify({
+      ayudantes: 'DR. PEREZ, JUAN, PEDRO, NO APLICA',
+    }))
+    expect(result.fields.ayudantes).toBe('DR. PEREZ, JUAN, PEDRO')
+  })
+
+  it('removes leading comma from a name', () => {
+    const result = parseAIResponse(JSON.stringify({ paciente: ', JUAN CARLOS PEREZ' }))
+    expect(result.fields.paciente).toBe('JUAN CARLOS PEREZ')
   })
 
   it('normalizes short and iso dates to dd-mm-aaaa', () => {
