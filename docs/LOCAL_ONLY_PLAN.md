@@ -28,7 +28,7 @@ Este documento es solo de planificación. No requiere implementación ahora.
 
 - reglas locales para normalizar fechas, nombres, sanatorios y procedimientos
 - parser local para campos estructurados
-- opcionalmente un modelo local chico solo para limpieza o clasificación, nunca para leer la imagen cruda
+- opcionalmente `Qwen2.5-1.5B-Instruct` cuantizado solo para limpieza, reordenado o clasificación de texto OCR, nunca para leer la imagen cruda
 
 ### Exclusiones
 
@@ -65,7 +65,7 @@ Puede seguir siendo remoto solo si no contiene datos clínicos:
 4. Un worker toma el trabajo y ejecuta OCR local.
 5. El OCR devuelve texto plano con bloques o líneas.
 6. El parser local extrae campos clínicos y normaliza formatos.
-7. Si hace falta, un modelo local chico corrige formato o agrupa texto, sin salir del servidor.
+7. Si hace falta, `Qwen2.5-1.5B-Instruct` cuantizado corrige formato o agrupa texto, sin salir del servidor.
 8. La app guarda el registro estructurado.
 9. La imagen temporal se elimina según política de retención.
 
