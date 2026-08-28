@@ -35,7 +35,6 @@ export default function FieldRow({ fieldName, value, aiValue, onChange, readOnly
   const [dateValue, setDateValue] = useState<string>(dateToISO(value) ?? '')
   const sharedClassName = 'w-full bg-slate-800 text-white rounded-lg px-3 py-2.5 border border-slate-700 focus:outline-none focus:border-blue-500 text-sm'
   const isDateField = fieldType === 'date'
-  const listId = suggestions && suggestions.length > 0 ? `field-${fieldName}-list` : undefined
 
   useEffect(() => {
     if (!textAreaRef.current) return
@@ -96,23 +95,19 @@ export default function FieldRow({ fieldName, value, aiValue, onChange, readOnly
       </div>
     )
   } else if (suggestions && suggestions.length > 0) {
+    const options = value && !suggestions.includes(value) ? [value, ...suggestions] : suggestions
     input = (
-      <>
-        <input
-          type="text"
-          value={value}
-          readOnly={readOnly}
-          list={listId}
-          onChange={event => onChange(event.target.value)}
-          placeholder="—"
-          className={sharedClassName}
-        />
-        {listId && (
-          <datalist id={listId}>
-            {suggestions.map(option => <option key={option} value={option} />)}
-          </datalist>
-        )}
-      </>
+      <select
+        value={value}
+        disabled={readOnly}
+        onChange={event => onChange(event.target.value)}
+        className={`${sharedClassName} min-h-12 cursor-pointer`}
+      >
+        <option value="">Seleccioná un sanatorio u hospital</option>
+        {options.map(option => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
     )
   } else {
     input = (

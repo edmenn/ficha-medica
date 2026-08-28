@@ -17,7 +17,7 @@ if (!PROD_KEY) {
 const out = execSync(
   `docker exec ${DB_CONTAINER} psql -U postgres -d postgres -t -A -c "select unnest(image_paths) from public.surgical_records where image_paths <> '{}'"`
 ).toString()
-const paths = out.split('\n').map(s => s.trim()).filter(Boolean)
+const paths = out.split('\n').map(s => s.trim()).filter(path => path && path !== 'manual-entry')
 console.log('Imagenes a copiar:', paths.length)
 
 for (const path of paths) {
