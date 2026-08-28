@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { formatUsd } from '@/lib/formatters'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { clearAppCache } from '@/lib/clear-cache'
@@ -200,13 +201,13 @@ export default function SettingsPageClient({
             <div>
               <p className="text-xs text-slate-500">Saldo OpenRouter</p>
               <p className="text-base font-semibold text-slate-200">
-                {usage.balance_usd != null ? `US$ ${usage.balance_usd.toFixed(4)}` : '—'}
+                {usage.balance_usd != null ? formatUsd(usage.balance_usd) : '—'}
               </p>
             </div>
             <div>
               <p className="text-xs text-slate-500">Uso total histórico</p>
               <p className="text-base font-semibold text-slate-200">
-                {usage.total_cost_usd != null ? `US$ ${usage.total_cost_usd.toFixed(4)}` : 'US$ 0.0000'}
+                {usage.total_cost_usd != null ? formatUsd(usage.total_cost_usd) : formatUsd(0)}
               </p>
             </div>
             <div>

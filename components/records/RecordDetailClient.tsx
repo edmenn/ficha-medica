@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { formatUsd } from '@/lib/formatters'
 import RecordForm from '@/components/records/RecordForm'
 import BackToRecordsButton from '@/components/ui/BackToRecordsButton'
 import { deleteRecordAction, updateRecordAction } from '@/app/(user)/records/[id]/actions'
@@ -284,7 +285,7 @@ export default function RecordDetailClient({ record: initialRecord, aiUsage }: P
             <div>
               <p className="text-xs text-slate-500">Costo acumulado</p>
               <p className="text-base font-semibold text-slate-200">
-                {aiUsage.total_cost_usd != null ? `US$ ${aiUsage.total_cost_usd.toFixed(4)}` : '—'}
+                {aiUsage.total_cost_usd != null ? formatUsd(aiUsage.total_cost_usd) : '—'}
               </p>
             </div>
             <div>
@@ -294,7 +295,7 @@ export default function RecordDetailClient({ record: initialRecord, aiUsage }: P
             {aiUsage.last_cost_usd != null && (
               <div>
                 <p className="text-xs text-slate-500">Último costo</p>
-                <p className="text-base font-semibold text-slate-200">US$ {aiUsage.last_cost_usd.toFixed(4)}</p>
+                <p className="text-base font-semibold text-slate-200">{formatUsd(aiUsage.last_cost_usd)}</p>
               </div>
             )}
           </div>
