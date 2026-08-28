@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Verifica que el esquema de la DB de producción coincida con las migraciones
-# del repo (001-011). Reporta objetos faltantes. Hace UNA sola conexión a la DB.
+# del repo. Reporta objetos faltantes. Hace UNA sola conexión a la DB.
 #
 # Uso:
 #   DB_PASS='...' bash scripts/verify-prod-schema.sh
@@ -58,7 +58,6 @@ echo "==> Verificando esquema de produccion ($DB_HOST) ..."
 # Tablas (001, 007, 009, 010, 011)
 require_table "users"
 require_table "surgical_records"
-require_table "custom_field_templates"
 require_table "invitations"
 require_table "audit_log"
 require_table "impersonation_sessions"
